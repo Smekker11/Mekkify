@@ -1,21 +1,24 @@
 import { Songs } from "./db/tmp-db-conf.js";
-import { givenPath, icecastserver } from "./config.js";
+import { givenPath, icecastserver, ffmpegArgs,silenceArgs } from "./config.js";
 import fs from "fs";
 import path from "path";
 import * as mm from "music-metadata";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const ffmpeg = require("fluent-ffmpeg");
-import icecast from 'icecast';
+import { spawn } from 'child_process';
 
 // Set the path to the ffmpeg binary
 ffmpeg.setFfmpegPath('/usr/bin/ffmpeg');
+
+let flacStreamProcess = null;
+let silenceStreamProcess = null; // Global variable to store silence process  
 
 let repopulateDB = async () => {
   let flacArray = await listFilesRecursively(givenPath);
   for (let flacfile of flacArray) {
     try {
-      let metadata = await mm.parseFile(flacfile); // Await the parseFile function
+      let metadata = await mm.parseFile(flacfile);
       await Songs.create({
         title: metadata.common.title || 'Unknown Title',
         artists: metadata.common.artist || 'Unknown Artist',
@@ -23,7 +26,7 @@ let repopulateDB = async () => {
         path: flacfile
       });
     } catch (err) {
-      return err;
+      console.error("Error processing file:", err);
     }
   }
   return 1;
@@ -35,35 +38,40 @@ let listDB = async () => {
 }
 
 async function streamFlacFile(filePath) {
-  let playerobj = await createPlayer();
-  console.log('Now Playing:', filePath);
-
-  if (playerobj) {
-    await console.log('Connecting to Icecast server... ' + JSON.stringify(playerobj));
-    playerobj.on('connect', () => {
-      console.log('Connected to Icecast server');
-      const ffmpegStream = ffmpeg(filePath)
-      .inputFormat('flac')
-      .format('flac')
-      .pipe(playerobj, { end: true });
-
-      ffmpegStream.on('error', (err) => {
-      console.error('FFmpeg error:', err);
-    });
-    });
-
-    playerobj.on('error', (err) => {
-      console.error('Icecast client error:', err);
-    });
-  } else {
-    console.error("Player is not initialized.");
+  if (silenceStreamProcess) {
+    console.log('Stopping existing stream...');
+    silenceStreamProcess.kill('SIGTERM'); // Stop the current stream
+    silenceStreamProcess = null;
   }
+  if (flacStreamProcess) {
+    console.log('Stopping existing stream...');
+    flacStreamProcess.kill('SIGTERM'); // Stop the current stream
+    flacStreamProcess = null;
+  }
+
+  console.log(`Streaming file: ${filePath}`);
+
+  flacStreamProcess = spawn('ffmpeg', ffmpegArgs);
+
+  flacStreamProcess.stderr.on('data', (data) => {
+    console.error(`FFmpeg stderr: ${data}`);
+  });
+
+  flacStreamProcess.on('close', (code) => {
+    console.log(`FFmpeg process exited with code ${code}`);
+    if (code == 0) {
+      startSilenceProcess(); // Restart silence stream if ffmpeg exits cleanly
+    }
+  });
+
+  flacStreamProcess.on('error', (err) => {
+    console.error(`FFmpeg process error: ${err}`);
+  });
 }
 
 function listFilesRecursively(dirPath) {
   let fileList = [];
 
-  // Read the contents of the directory
   const items = fs.readdirSync(dirPath);
 
   for (const item of items) {
@@ -71,10 +79,8 @@ function listFilesRecursively(dirPath) {
     const stat = fs.statSync(itemPath);
 
     if (stat.isDirectory()) {
-      // If the item is a directory, recursively list its contents
       fileList = fileList.concat(listFilesRecursively(itemPath));
     } else if (stat.isFile() && path.extname(itemPath).toLowerCase() === '.flac') {
-      // If the item is a file and has a .flac extension, add it to the list
       fileList.push(itemPath);
     }
   }
@@ -82,25 +88,29 @@ function listFilesRecursively(dirPath) {
   return fileList;
 }
 
-async function createPlayer() {
-  let player;
-try {
-  player = new icecast.Client({
-    host: icecastserver.ICECAST_HOST,
-    port: icecastserver.ICECAST_PORT,
-    user: icecastserver.ICECAST_USER,
-    password: icecastserver.ICECAST_PASSWORD,
-    mount: icecastserver.ICECAST_MOUNT
+
+function startSilenceProcess() {
+  if (silenceStreamProcess) {
+    console.log('Stopping existing stream...');
+    silenceStreamProcess.kill('SIGTERM'); // Stop the current stream
+    silenceStreamProcessStreamProcess = null;
+  }
+
+  const voidSoundEntity = spawn('ffmpeg', silenceArgs);
+
+  voidSoundEntity.stderr.on('data', (data) => {
+    console.error(`FFmpeg stderr (silence): ${data}`);
   });
 
-  player.on('error', (err) => {
-    console.error('Icecast client connection error:', err);
+  voidSoundEntity.on('close', (code) => {
+    console.log(`FFmpeg process (silence) exited with code ${code}`);
   });
-} catch (err) {
-  //console.log(player.host + " " + player.port + " " + player.user + " " + player.password + " " + player.mount);
-  console.error("Error creating Icecast client:", err, " ", JSON.stringify(player));
-}
-  return player;
+
+  voidSoundEntity.on('error', (err) => {
+    console.error(`FFmpeg process (silence) error: ${err}`);
+  });
+
+  silenceStreamProcess = voidSoundEntity; // Store the silence process globally
 }
 
-export { repopulateDB, listDB, streamFlacFile };
+export { repopulateDB, listDB, streamFlacFile, startSilenceProcess };
