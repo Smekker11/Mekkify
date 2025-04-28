@@ -116,7 +116,7 @@ function startSilenceProcess() {
   if (silenceStreamProcess) {
     console.log('Stopping existing stream...');
     silenceStreamProcess.kill('SIGTERM'); 
-    silenceStreamProcessStreamProcess = null;
+    silenceStreamProcess = null;
   }
   if (flacStreamProcess) {
     console.log('Stopping existing stream...');

@@ -111,8 +111,17 @@ app.get('/queue/:status', async (req, res) => {
     }
 });
 
-
-
+// Drop queue
+app.get('/drop/queue', async (req, res) => {
+    try {
+        await Queue.destroy({ where: {} }); // Delete all entries in the Queue table
+        await startSilenceProcess()
+        await startSilenceProcess()
+        res.send('Queue dropped successfully.');
+    } catch (err) {
+        res.status(500).send('Error dropping queue: ' + err.message);
+    }
+});
 
 //init API
 app.listen(apiport, () => {
