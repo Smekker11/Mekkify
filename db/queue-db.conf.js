@@ -13,6 +13,9 @@ const Queue = sequelize.define('Queue',{
         primaryKey: true,
         autoIncrement:true
     },
+    songID:{
+        type: DataTypes.INTEGER
+    },
     path: {
         type: DataTypes.STRING
     },

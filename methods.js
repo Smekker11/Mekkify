@@ -1,5 +1,5 @@
 import { Songs } from "./db/tmp-db-conf.js";
-import { givenPath, icecastserver, ffmpegArgs,silenceArgs } from "./config.js";
+import { givenPath, icecastserver,silenceArgs } from "./config.js";
 import fs from "fs";
 import path from "path";
 import * as mm from "music-metadata";
@@ -7,13 +7,16 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const ffmpeg = require("fluent-ffmpeg");
 import { spawn } from 'child_process';
+import { Queue } from "./db/queue-db.conf.js";
 
-// Set the path to the ffmpeg binary
+// Set path of ffmpeg 
 ffmpeg.setFfmpegPath('/usr/bin/ffmpeg');
 
+//define global ffmpeg instances
 let flacStreamProcess = null;
-let silenceStreamProcess = null; // Global variable to store silence process  
+let silenceStreamProcess = null;  
 
+//refreshdb function
 let repopulateDB = async () => {
   let flacArray = await listFilesRecursively(givenPath);
   for (let flacfile of flacArray) {
@@ -32,40 +35,60 @@ let repopulateDB = async () => {
   return 1;
 }
 
+//listDB function
 let listDB = async () => {
   let songs = await Songs.findAll();
   return songs;
 }
 
+//grotesque function to stream with ffmpeg
 async function streamFlacFile(filePath) {
   if (silenceStreamProcess) {
     console.log('Stopping existing stream...');
-    silenceStreamProcess.kill('SIGTERM'); // Stop the current stream
+    silenceStreamProcess.kill('SIGTERM'); 
     silenceStreamProcess = null;
   }
   if (flacStreamProcess) {
     console.log('Stopping existing stream...');
-    flacStreamProcess.kill('SIGTERM'); // Stop the current stream
+    flacStreamProcess.kill('SIGTERM'); 
     flacStreamProcess = null;
   }
+   
+//FFMPEG ARGS
+const ffmpegArgs = [
+  '-re',              // Read input at native frame rate
+  '-i', filePath,     // Input FLAC file or stream
+  '-c:a', 'libvorbis', // Use the Vorbis encoder
+  '-b:a', '192k',     // Set audio bitrate to 192 kbps for good quality
+  '-ar', '44100',     // Set audio sample rate to 44.1 kHz
+  '-ac', '2',         // Ensure stereo audio
+  '-content_type', 'audio/ogg', // Set content type to OGG
+  '-vn',              // Disable video
+  '-f', 'ogg',        // Use OGG format
+  `icecast://${encodeURIComponent(icecastserver.ICECAST_USER)}:${encodeURIComponent(icecastserver.ICECAST_PASSWORD)}@${icecastserver.ICECAST_HOST}:${icecastserver.ICECAST_PORT}${icecastserver.ICECAST_MOUNT}`
+];
 
   console.log(`Streaming file: ${filePath}`);
+ 
+  return new Promise((resolve, reject) => {
+    flacStreamProcess = spawn('ffmpeg', ffmpegArgs);
 
-  flacStreamProcess = spawn('ffmpeg', ffmpegArgs);
+    flacStreamProcess.stderr.on('data', (data) => {
+      console.error(`FFmpeg stderr: ${data}`);
+    });
 
-  flacStreamProcess.stderr.on('data', (data) => {
-    console.error(`FFmpeg stderr: ${data}`);
-  });
+    flacStreamProcess.on('close', (code) => {
+      console.log(`FFmpeg process exited with code ${code}`);
+      if (code === 0) {
+        startSilenceProcess();
+      }
+      resolve(); 
+    });
 
-  flacStreamProcess.on('close', (code) => {
-    console.log(`FFmpeg process exited with code ${code}`);
-    if (code == 0) {
-      startSilenceProcess(); // Restart silence stream if ffmpeg exits cleanly
-    }
-  });
-
-  flacStreamProcess.on('error', (err) => {
-    console.error(`FFmpeg process error: ${err}`);
+    flacStreamProcess.on('error', (err) => {
+      console.error(`FFmpeg process error: ${err}`);
+      reject(err); 
+    });
   });
 }
 
@@ -88,12 +111,17 @@ function listFilesRecursively(dirPath) {
   return fileList;
 }
 
-
+//grotesque function to silence with ffmpeg
 function startSilenceProcess() {
   if (silenceStreamProcess) {
     console.log('Stopping existing stream...');
-    silenceStreamProcess.kill('SIGTERM'); // Stop the current stream
+    silenceStreamProcess.kill('SIGTERM'); 
     silenceStreamProcessStreamProcess = null;
+  }
+  if (flacStreamProcess) {
+    console.log('Stopping existing stream...');
+    flacStreamProcess.kill('SIGTERM'); 
+    flacStreamProcess = null;
   }
 
   const voidSoundEntity = spawn('ffmpeg', silenceArgs);
@@ -110,7 +138,7 @@ function startSilenceProcess() {
     console.error(`FFmpeg process (silence) error: ${err}`);
   });
 
-  silenceStreamProcess = voidSoundEntity; // Store the silence process globally
+  silenceStreamProcess = voidSoundEntity; 
 }
 
 export { repopulateDB, listDB, streamFlacFile, startSilenceProcess };
