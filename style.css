@@ -1,16 +1,22 @@
 body {
     font-family: 'Verdana', sans-serif;
-    background-color: #fff2e0;
+    background-color: #37281a;
     color: #4a2c17;
     margin: 0;
     padding: 0;
 }
 
+.center {
+    margin-left: auto;
+    margin-right: auto;
+}
+
 .container {
+    margin-top: auto;
     max-width: 960px;
     margin: auto;
     padding: 20px;
-    background-color: #fff8e6;
+    background-color: #ffd261;
     box-shadow: 0 0 15px #d4883f;
 }
 
@@ -68,10 +74,11 @@ main {
 }
 
 .player {
-    background-color: #ffebcc;
+    background-color: #f9f99a;
     padding: 15px;
     border: 2px dashed #cc7a00;
     margin-bottom: 20px;
+    text-align: center; /* Center content inside the player */
 }
 
 .player h2 {
@@ -86,6 +93,7 @@ main {
     border: none;
     cursor: pointer;
     box-shadow: 2px 2px #aa562c;
+    margin: 0 auto; /* Center the button horizontally */
 }
 
 .player button:hover {
@@ -93,7 +101,7 @@ main {
 }
 
 .news {
-    background-color: #fff5e1;
+    background-color: #f9f99a;
     padding: 15px;
     border-left: 5px solid #cc6600;
 }

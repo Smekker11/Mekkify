@@ -34,4 +34,4 @@ sequelize.sync()
     .catch(error => console.log("DB connection failed", error));
   
   
-export {Songs};
+export {Songs, sequelize};

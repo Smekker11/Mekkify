@@ -45,12 +45,12 @@ let listDB = async () => {
 async function streamFlacFile(filePath) {
   if (silenceStreamProcess) {
     console.log('Stopping existing stream...');
-    silenceStreamProcess.kill('SIGTERM'); 
+    await silenceStreamProcess.kill('SIGTERM'); 
     silenceStreamProcess = null;
   }
   if (flacStreamProcess) {
     console.log('Stopping existing stream...');
-    flacStreamProcess.kill('SIGTERM'); 
+    await flacStreamProcess.kill('SIGTERM'); 
     flacStreamProcess = null;
   }
    
@@ -91,7 +91,7 @@ const ffmpegArgs = [
     });
   });
 }
-
+//recursive file read
 function listFilesRecursively(dirPath) {
   let fileList = [];
 
@@ -112,15 +112,15 @@ function listFilesRecursively(dirPath) {
 }
 
 //grotesque function to silence with ffmpeg
-function startSilenceProcess() {
+async function startSilenceProcess() {
   if (silenceStreamProcess) {
     console.log('Stopping existing stream...');
-    silenceStreamProcess.kill('SIGTERM'); 
+    await silenceStreamProcess.kill('SIGTERM'); 
     silenceStreamProcess = null;
   }
   if (flacStreamProcess) {
     console.log('Stopping existing stream...');
-    flacStreamProcess.kill('SIGTERM'); 
+    await flacStreamProcess.kill('SIGTERM'); 
     flacStreamProcess = null;
   }
 

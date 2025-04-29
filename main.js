@@ -1,6 +1,7 @@
 import { repopulateDB, listDB, streamFlacFile, startSilenceProcess } from './methods.js';
 import { Songs } from './db/tmp-db-conf.js';
 import { Queue } from './db/queue-db.conf.js';
+import { sequelize } from './db/tmp-db-conf.js';
 import cors from 'cors';
 import express from 'express';
 
@@ -12,6 +13,7 @@ const app = express();
 app.use(cors());
 
 startSilenceProcess(); // Radio silence defaulted
+repopulateDB(); // default repop DB
 
 app.get('/stream/:id', async (req, res) => {
     const songId = req.params.id; 
@@ -21,7 +23,7 @@ app.get('/stream/:id', async (req, res) => {
         if (song) {
             console.log(`Streaming file: ${song.path}`);
             streamFlacFile(song.path); 
-            res.send(`Streaming file: ${song.path}`);
+            res.send(`Streaming song: ${song.title} by ${song.artists} on ${song.album}.`);
         } else {
             res.status(404).send('Song not found, silence continues...');
         }
@@ -32,11 +34,17 @@ app.get('/stream/:id', async (req, res) => {
 
 // Refresh DB
 app.get('/refresh', async (req, res) => {
-    const result = await repopulateDB();
-    if (result === 1) {
-        res.send('FLAC DATABASE REFRESHED WITH PATH: ' + givenPath);
-    } else {
-        res.status(500).send("Catastrophic failure! " + JSON.stringify(result));
+    try {
+        await Songs.destroy({ where: {} }); 
+        //await Songs.destroy({ truncate: true, restartIdentity: true });
+        const result = await repopulateDB();
+        if (result === 1) {
+            res.send('FLAC DATABASE REFRESHED WITH PATH: ' + givenPath);
+        } else {
+            res.status(500).send("Catastrophic failure! " + JSON.stringify(result));
+        }
+    } catch (err) {
+        res.status(500).send('Error refreshing database: ' + err.message);
     }
 });
 
@@ -50,7 +58,7 @@ app.get('/list', async (req, res) => {
 //list queue
 app.get('/list/queue', async (req, res) => {
     const queue = await Queue.findAll();
-    res.send('Queue dump: ' + JSON.stringify(queue));
+    res.send(queue);
 });
 
 app.get('/queue/add/:id', async (req, res) => {
@@ -114,8 +122,7 @@ app.get('/queue/:status', async (req, res) => {
 // Drop queue
 app.get('/drop/queue', async (req, res) => {
     try {
-        await Queue.destroy({ where: {} }); // Delete all entries in the Queue table
-        await startSilenceProcess()
+        await Queue.destroy({ where: {} });
         await startSilenceProcess()
         res.send('Queue dropped successfully.');
     } catch (err) {

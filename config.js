@@ -1,9 +1,9 @@
 //icecast connection params
 const icecastserver = {
-  ICECAST_HOST: '192.168.8.14',
+  ICECAST_HOST: 'smekker.go.ro',
   ICECAST_PORT: 8000,
   ICECAST_USER: 'smekker11',
-  ICECAST_PASSWORD: '',
+  ICECAST_PASSWORD: 'FX516PM#.',
   ICECAST_MOUNT: '/flacs.ogg', // Set this to the desired mount point
 
 };
