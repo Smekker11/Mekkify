@@ -1,0 +1,36 @@
+{
+  "icecastserver": {
+    "ICECAST_HOST": "someting.com",
+    "ICECAST_PORT": 8000,
+    "ICECAST_USER": "source",
+    "ICECAST_PASSWORD": "examplepassword",
+    "ICECAST_MOUNT": "/flacs.ogg"
+  },
+  "givenPath": "/somepath/i/have/flacs/in/here",
+  "apiport": 7887,
+  "apiBaseUrl": "http://localhost:7887/",
+  "icecastFrontend": {
+    "STREAM_URL": "https://someting.com/icecast/",
+    "MOUNT_POINT": "/flacs.ogg",
+    "STATUS_URL": "https://someting.com/icecast/status-json.xsl"
+  },
+  "silenceArgs": [
+    "-re",
+    "-f",
+    "lavfi",
+    "-i",
+    "anullsrc=r=44100:cl=stereo",
+    "-c:a",
+    "libvorbis",
+    "-b:a",
+    "128k",
+    "-ar",
+    "44100",
+    "-ac",
+    "2",
+    "-content_type",
+    "audio/ogg",
+    "-f",
+    "ogg"
+  ]
+}

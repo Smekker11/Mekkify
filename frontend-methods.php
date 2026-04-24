@@ -1,5 +1,92 @@
 <?php
 
+// Read configuration from filesystem
+$configPath = __DIR__ . '/config.json';
+if (!file_exists($configPath)) {
+    die("<h1 style='color: white;'>Error</h1><p style='color: white;'>Configuration file not found at $configPath. Make sure config.json exists.</p>");
+}
+$configResponse = file_get_contents($configPath);
+if ($configResponse === FALSE) {
+    die("<h1 style='color: white;'>Error</h1><p style='color: white;'>Unable to read configuration file from filesystem.</p>");
+}
+$config = json_decode($configResponse, true);
+$apiBaseUrl = $config['apiBaseUrl'];
+$streamUrl = $config['icecastFrontend']['STREAM_URL'];
+$mountPoint = $config['icecastserver']['ICECAST_MOUNT'];
+$icecastStatusUrl = $config['icecastFrontend']['STATUS_URL'];
+
+// Session variables to store API response messages
+$apiNotification = '';
+$apiNotificationType = 'info';
+
+// Helper function for API error handling
+function handleApiError($message, $attemptedUrl, $additionalInfo = '') {
+    global $apiBaseUrl;
+    $errorHtml = "<h1 style='color: white;'>API Error occurred</h1>";
+    $errorHtml .= "<p style='color: white;'>$message</p>";
+    $errorHtml .= "<p style='color: white;'>Current config:</p>";
+    $errorHtml .= "<p style='color: white;'>API Base URL: $apiBaseUrl</p>";
+    $errorHtml .= "<p style='color: white;'>Requested URL: $attemptedUrl</p>";
+    if ($additionalInfo) {
+        $errorHtml .= "<p style='color: white;'>$additionalInfo</p>";
+    }
+    $errorHtml .= "<button onclick='location.reload()'>Retry</button>";
+    echo $errorHtml;
+    exit;
+}
+
+function generateAlbums() {
+    global $apiBaseUrl;
+    $url = $apiBaseUrl . 'list/albums';
+    $response = file_get_contents($url);
+    if ($response === FALSE) {
+        handleApiError('Failed to fetch album list.', $url);
+    }
+    $albums = json_decode($response, true);
+    if (!$albums || !is_array($albums)) {
+        return "<p>Invalid album data.</p>";
+    }
+
+    $html = '<div class="album-grid">';
+    foreach ($albums as $albumData) {
+        $albumName = htmlspecialchars($albumData['album'] ?? 'Unknown Album');
+        $artists = htmlspecialchars($albumData['artists'] ?? 'Unknown Artist');
+        $coverUrl = htmlspecialchars($albumData['cover'] ?? '');
+        $albumLink = '?action=showalbums&playalbum=' . rawurlencode($albumData['album'] ?? '');
+
+        $html .= '<div class="album-card">';
+        $html .= '<a href="' . $albumLink . '" onclick="contactApiStatus(\'Contacting album stream...\')">';
+        $html .= '<img src="' . $coverUrl . '" alt="Cover art for ' . $albumName . '">';
+        $html .= '<div class="album-card-meta">';
+        $html .= '<span class="album-title">' . $albumName . '</span>';
+        $html .= '<span class="album-artists">' . $artists . '</span>';
+        $html .= '</div>';
+        $html .= '</a>';
+        $html .= '</div>';
+    }
+    $html .= '</div>';
+
+    return $html;
+}
+
+// Helper function for stream/Icecast error handling
+function handleStreamError($message, $additionalInfo = '') {
+    global $streamUrl, $mountPoint, $icecastStatusUrl;
+    $errorHtml = "<h1 style='color: white;'>Stream Error occurred</h1>";
+    $errorHtml .= "<p style='color: white;'>$message</p>";
+    $errorHtml .= "<p style='color: white;'>check Icecast server, API status and mount point configuration.</p>";
+    $errorHtml .= "<p style='color: white;'>Current config:</p>";
+    $errorHtml .= "<p style='color: white;'>Stream URL: $streamUrl</p>";
+    $errorHtml .= "<p style='color: white;'>Mount Point: $mountPoint</p>";
+    $errorHtml .= "<p style='color: white;'>Icecast Status URL: $icecastStatusUrl</p>";
+    if ($additionalInfo) {
+        $errorHtml .= "<p style='color: white;'>$additionalInfo</p>";
+    }
+    $errorHtml .= "<button onclick='location.reload()'>Retry</button>";
+    echo $errorHtml;
+    exit;
+}
+
 function generateMusicTable($jsonData) {
     $data = json_decode($jsonData, true);
 
@@ -18,15 +105,15 @@ function generateMusicTable($jsonData) {
         $artists = htmlspecialchars($track['artists']);
         $album = htmlspecialchars($track['album']);
 
-        $playLink = "<a href=\"?action=showtable&play=$id\" onclick=\"refreshLibraryAfterPlay()\">Play</a>";
-        $addLink = "<a href=\"?action=showtable&add=$id\">Add to Queue</a>";
+        $playLink = "<a class=\"table-button\" href=\"?action=showtable&play=$id\">Play</a>";
+        $addLink = "<a class=\"table-button\" href=\"?action=showtable&add=$id\">Add to Queue</a>";
 
         $html .= "<tr>";
         $html .= "<td>$id</td>";
         $html .= "<td>$title</td>";
         $html .= "<td>$artists</td>";
         $html .= "<td>$album</td>";
-        $html .= "<td>$playLink | $addLink</td>";
+        $html .= "<td class=\"table-action-cell\">$playLink $addLink</td>";
         $html .= "</tr>";
     }
 
@@ -35,33 +122,47 @@ function generateMusicTable($jsonData) {
 }
 
 function streamSong($id) {
-    $url = 'http://localhost:7887/stream/' . $id;
+    global $apiBaseUrl, $apiNotification, $apiNotificationType;
+    $url = $apiBaseUrl . 'stream/' . $id;
     $response = file_get_contents($url);
     if ($response === FALSE) {
-        die('API Error occurred');
+        handleApiError('Failed to stream song.', $url, "Song ID: $id");
     }
-    echo "<script>
-        setTimeout(function() {
-            location.href = '?action=showtable'; // Refresh the library page
-        }, 1000);
-    </script>";
+    $responseData = json_decode($response, true);
+    $apiNotification = isset($responseData['status']) ? $responseData['status'] : 'Stream started successfully!';
+    $apiNotificationType = 'success';
+}
+
+function playAlbum($albumName) {
+    global $apiBaseUrl, $apiNotification, $apiNotificationType;
+    $url = $apiBaseUrl . 'stream/album/' . rawurlencode($albumName);
+    $response = file_get_contents($url);
+    if ($response === FALSE) {
+        handleApiError('Failed to start album stream.', $url, "Album: $albumName");
+    }
+    $responseData = json_decode($response, true);
+    $apiNotification = isset($responseData['status']) ? $responseData['status'] : 'Album stream started successfully!';
+    $apiNotificationType = 'success';
 }
 
 function addToQueue($id) {
-    $url = 'http://localhost:7887/queue/add/' . $id;
-    file_get_contents($url);
-    echo "<script>
-        setTimeout(function() {
-            location.href = '?action=showtable'; // Refresh the library page
-        }, 1000);
-    </script>";
+    global $apiBaseUrl, $apiNotification, $apiNotificationType;
+    $url = $apiBaseUrl . 'queue/add/' . $id;
+    $response = file_get_contents($url);
+    if ($response === FALSE) {
+        handleApiError('Failed to add song to queue.', $url, "Song ID: $id");
+    }
+    $responseData = json_decode($response, true);
+    $apiNotification = isset($responseData['status']) ? $responseData['status'] : 'Added to queue!';
+    $apiNotificationType = 'success';
 }
 
 function generateQueue() {
-    $url = 'http://localhost:7887/list/queue'; // Replace with your API URL
+    global $apiBaseUrl;
+    $url = $apiBaseUrl . 'list/queue';
     $response = file_get_contents($url);
     if ($response === FALSE) {
-        die('API Error occurred');
+        handleApiError('Failed to fetch queue list.', $url);
     }
     $data = json_decode($response, true);
     if (!$data || !is_array($data)) {
@@ -90,68 +191,65 @@ foreach ($data as $track) {
 
 $html .= '</tbody></table><br>';
 
-// Add two buttons below the table
-$html .= '<button onclick="contactApi(\'http://localhost:7887/queue/true\')">Play Queue</button> ';
-$html .= '<button onclick="contactApi(\'http://localhost:7887/drop/queue\')">Drop Queue</button>';
+// Add two form buttons below the table
+$html .= '<div class="queue-actions">';
+$html .= '<form method="POST" style="display: inline;">';
+$html .= '<input type="hidden" name="queue_action" value="play">';
+$html .= '<button type="submit" class="action-button">Play Queue</button>';
+$html .= '</form> ';
+$html .= '<form method="POST" style="display: inline;">';
+$html .= '<input type="hidden" name="queue_action" value="drop">';
+$html .= '<button type="submit" class="action-button">Drop Queue</button>';
+$html .= '</form>';
+$html .= '</div>';
+
 return $html;
 }
 
-function fetchSongList(){
-    $url = 'http://localhost:7887/list'; // Replace with your API URL
+function playQueue() {
+    global $apiBaseUrl, $apiNotification, $apiNotificationType;
+    $url = $apiBaseUrl . 'queue/true';
     $response = file_get_contents($url);
     if ($response === FALSE) {
-        die('API Error occurred');
+        handleApiError('Failed to play queue.', $url);
+    }
+    $responseData = json_decode($response, true);
+    $apiNotification = isset($responseData['status']) ? $responseData['status'] : 'Queue started playing!';
+    $apiNotificationType = 'success';
+}
+
+function dropQueue() {
+    global $apiBaseUrl, $apiNotification, $apiNotificationType;
+    $url = $apiBaseUrl . 'drop/queue';
+    $response = file_get_contents($url);
+    if ($response === FALSE) {
+        handleApiError('Failed to drop queue.', $url);
+    }
+    $responseData = json_decode($response, true);
+    $apiNotification = isset($responseData['status']) ? $responseData['status'] : 'Queue dropped!';
+    $apiNotificationType = 'success';
+}
+
+function fetchSongList(){
+    global $apiBaseUrl;
+    $url = $apiBaseUrl . 'list';
+    $response = file_get_contents($url);
+    if ($response === FALSE) {
+        handleApiError('Failed to fetch song list.', $url);
     }
     return $response; // fetchList function
 }
 
-$songlist = fetchSongList();
-?>
-
-<?php//BUTTON SECTION?>
-<?php
-$icecastStatusUrl = "http://smekker.go.ro:8000/status-json.xsl";
-
-// Fetch metadata from Icecast server
-$response = file_get_contents($icecastStatusUrl);
-if (!$response) {
-    die("Unable to fetch Icecast data.");
-}
-
-$data = json_decode($response, true);
-
-// Get mount info (example assumes one mount point)
-$mountPoint = "/flacs.ogg"; // change if needed
-$sourceData = null;
-
-// Find correct mount point
-if (isset($data['icestats']['source'])) {
-    $sources = $data['icestats']['source'];
-
-    // If there are multiple mount points
-    if (isset($sources[0])) {
-        foreach ($sources as $source) {
-            if ($source['listenurl'] ?? false && str_ends_with($source['listenurl'], $mountPoint)) {
-                $sourceData = $source;
-                break;
-            }
+// Handle form submissions for queue actions
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['queue_action'])) {
+        if ($_POST['queue_action'] === 'play') {
+            playQueue();
+        } elseif ($_POST['queue_action'] === 'drop') {
+            dropQueue();
         }
-    } else {
-        // Only one source
-        $sourceData = $sources;
     }
 }
 
-if (!$sourceData) {
-    echo "<h1 style='color: white;'>Stream not found.</h1>";
-    exit;
-}
-
-// Extract metadata
-$title = $sourceData['title'] ?? 'No Title';
-$artist = $sourceData['artist'] ?? '';
-$nowPlaying = $sourceData['artist'] && $sourceData['title'] ? "$artist - $title" : ($sourceData['title'] ?? "nothing.");
-
-// Stream URL
-$streamUrl = "http://smekker.go.ro:8000$mountPoint";
+$songlist = fetchSongList();
 ?>

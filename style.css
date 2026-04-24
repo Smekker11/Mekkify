@@ -1,3 +1,7 @@
+* {
+    box-sizing: border-box;
+}
+
 body {
     font-family: 'Verdana', sans-serif;
     background-color: #37281a;
@@ -9,6 +13,70 @@ body {
 .center {
     margin-left: auto;
     margin-right: auto;
+}
+
+table.center {
+    width: 100%;
+    max-width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 24px;
+    table-layout: fixed;
+    background-color: #fff7df;
+    border: 2px solid #cc7a00;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+}
+
+table.center th,
+table.center td {
+    overflow-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
+    padding: 14px 12px;
+    border: 1px solid #e1b562;
+    vertical-align: middle;
+}
+
+table.center th {
+    background-color: #ffd261;
+    color: #5e2d1a;
+    font-weight: 700;
+    text-align: left;
+}
+
+table.center tbody tr:nth-child(even) {
+    background-color: #fff2d0;
+}
+
+table.center tbody tr:hover {
+    background-color: #ffe6b0;
+}
+
+table.center td {
+    color: #5e2d1a;
+}
+
+.table-button,
+.table-button:visited {
+    display: inline-block;
+    background-color: #d4733f;
+    color: #fff8dc;
+    text-decoration: none;
+    padding: 8px 12px;
+    margin: 2px 2px 2px 0;
+    border-radius: 5px;
+    border: 1px solid #a5422b;
+    font-size: 0.95em;
+}
+
+.table-button:hover,
+.table-button:focus {
+    background-color: #e5884f;
+    color: #ffffff;
+}
+
+.table-action-cell {
+    white-space: normal;
+    line-height: 1.4;
 }
 
 .container {
@@ -85,7 +153,8 @@ main {
     margin-top: 0;
 }
 
-.player button {
+.player button,
+.action-button {
     background-color: #d4733f;
     color: white;
     padding: 10px 20px;
@@ -93,11 +162,30 @@ main {
     border: none;
     cursor: pointer;
     box-shadow: 2px 2px #aa562c;
-    margin: 0 auto; /* Center the button horizontally */
+    border-radius: 6px;
+    text-decoration: none;
+    display: inline-block;
 }
 
-.player button:hover {
+.player button:hover,
+.action-button:hover {
     background-color: #e5884f;
+}
+
+.player-controls {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+
+.queue-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 18px 0 32px;
 }
 
 .news {
@@ -112,4 +200,121 @@ footer {
     background-color: #ffcc99;
     border-top: 2px solid #a0522d;
     font-size: 0.9em;
+}
+
+.album-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 15px;
+    margin: 20px auto;
+    padding: 0;
+    max-width: 980px;
+}
+
+.album-card {
+    width: 300px;
+    min-height: 380px;
+    background-color: #fff7df;
+    border: 2px solid #cc7a00;
+    padding: 10px;
+    box-sizing: border-box;
+    text-align: center;
+}
+
+.album-card a {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+}
+
+.album-card img {
+    width: 100%;
+    max-width: 100%;
+    height: 300px;
+    object-fit: cover;
+    display: block;
+    margin: 0 auto 10px;
+    border: 1px solid #a5422b;
+}
+
+.album-card-meta {
+    display: block;
+}
+
+.album-title {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 6px;
+}
+
+.album-artists {
+    display: block;
+    font-size: 0.9em;
+    color: #5e2d1a;
+}
+
+/* Notification Popup Styles */
+.notification {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    margin-left: -150px;
+    width: 300px;
+    padding: 15px 20px;
+    background-color: #d4733f;
+    color: #fff8dc;
+    border: 3px solid #a5422b;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    z-index: 10000;
+    text-align: center;
+    font-weight: bold;
+    animation: slideDown 0.3s ease-out;
+}
+
+.notification.success {
+    background-color: #66bb6a;
+    border-color: #4caf50;
+    color: #ffffff;
+}
+
+.notification.error {
+    background-color: #f44336;
+    border-color: #d32f2f;
+    color: #ffffff;
+}
+
+.notification.info {
+    background-color: #2196f3;
+    border-color: #1976d2;
+    color: #ffffff;
+}
+
+#nowPlayingCover {
+    width: 200px;
+    height: 200px;
+    object-fit: cover;
+    border: 2px solid #cc7a00;
+    margin-bottom: 15px;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
 }

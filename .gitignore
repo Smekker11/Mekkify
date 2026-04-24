@@ -1,3 +1,7 @@
 /node_modules
+/flac
+/output.ogg
 .php-preview-router.php
+config.js
+config.json
 
