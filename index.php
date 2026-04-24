@@ -13,7 +13,7 @@
     <?php include 'frontend-methods.php'; ?>
     <div class="container">
         <header>
-            <h1>Mekkify Internet Radio 2.0 🍊</h1>
+            <h1>Mekkify Internet Radio 2.01 🍊</h1>
             <p>Flac quality mandarin music streaming service.</p>
         </header>
 
@@ -66,12 +66,12 @@
 
             <section class="news">
                 <h3>🍊📰 Mekkify News</h3>
-                <p>Mekkify V2.0 is now live! Spotify, Apple Music, and YT Music has now gone bankrupt!</p>
+                <p>Mekkify V2.01 is now live! Spotify, Apple Music, and YT Music has now gone bankrupt!</p>
             </section>
         </main>
 
         <footer>
-            <p>&copy; 2026 Mekkify Internet Radio. Meperky Cod. All rights reserved.</p>
+            <p>&copy; 2026 Mekkify Internet Radio🍊. Meperky Cod. All rights reserved.</p>
         </footer>
     </div>
 
