@@ -35,7 +35,7 @@
                 <h2 id="nowPlaying" style="margin: 10px 0;">Unknown Track</h2>
                 <div class="player-controls">
                     <button onclick="playStream('<?php echo $streamUrl . $mountPoint; ?>')">▶ Play</button>
-                    <a href="?play=1" class="action-button" onclick="contactApiStatus('Skipped a song')">Skip Song</a>
+                    <button type="button" class="action-button" onclick="skipSong(event)">Skip Song</button>
                 </div>
                 <p id="nowPlayingQuality" style="font-size: 0.9em; color: #666; margin: 5px 0;">No stream</p>
                 <audio id="icecastPlayer" preload="none"></audio>
@@ -69,7 +69,7 @@
                 <h3>🍊📰 Mekkify News</h3>
                 <p>Mekkify V2.1.3 is now live! Spotify, Apple Music, and YT Music has now gone bankrupt!</p>
                 <p>BUGFIXES</p>
-                <p>.callback handoff fixed</p>
+                <p>.callback handoff fixed!</p>
                 <p>.mediarendering issue fixed!</p>
                 <p>.better albums structure in tree</p>
                 <p>.coverart cache</p>
@@ -130,6 +130,27 @@ function playStream(mountPoint) {
         showNotification("Playback failed: " + err.message, "error");
         reconnectStream();
     });
+}
+
+async function skipSong(event) {
+    event.preventDefault();
+    showNotification('Skipping a song...', 'info');
+
+    try {
+        const response = await fetch('?play=1', {
+            cache: 'no-store',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        showNotification('Skipped a song', 'success');
+    } catch (error) {
+        console.error('Skip failed:', error);
+        showNotification('Skip failed: ' + error.message, 'error');
+    }
 }
 
 function contactApiStatus(message) {
