@@ -170,7 +170,7 @@ function showNotification(message, type) {
 }
 
 // Get config values from PHP
-const statusUrl = '<?php echo htmlspecialchars($apiBaseUrl . 'icecast/status', ENT_QUOTES); ?>';
+const statusUrl = '<?php echo htmlspecialchars($icecastStatusUrl, ENT_QUOTES); ?>';
 
 async function updateMetadata() {
     try {
