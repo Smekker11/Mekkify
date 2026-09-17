@@ -1,4 +1,4 @@
-import { repopulateDB, listDB, streamFlacFile, startSilenceProcess, getAlbumJpg } from './methods.js';
+import { repopulateDB, listDB, streamFlacFile, startSilenceProcess, getAlbumJpg, getLocalAlbumCover } from './methods.js';
 import { Songs } from './db/tmp-db-conf.js';
 import { Queue } from './db/queue-db.conf.js';
 import { sequelize } from './db/tmp-db-conf.js';
@@ -60,11 +60,16 @@ app.get('/list/albums', async (req, res) => {
             return true;
         });
 
-        const albumList = await Promise.all(unique.map(async (album) => ({
-            album: album.album,
-            artists: album.artists.split(/[;,&]/)[0].trim(), // primary artist only
-            cover: await getAlbumJpg(album.album, album.artists)
-        })));
+        const albumList = await Promise.all(unique.map(async (album) => {
+            const firstSong = await Songs.findOne({ where: { album: album.album } });
+            const localCover = firstSong ? getLocalAlbumCover(firstSong.path) : null;
+
+            return {
+                album: album.album,
+                artists: album.artists.split(/[;,&]/)[0].trim(), // primary artist only
+                cover: localCover || await getAlbumJpg(album.album, album.artists)
+            };
+        }));
 
         res.status(200).send(albumList);
     } catch (err) {

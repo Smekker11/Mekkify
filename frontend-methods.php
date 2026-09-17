@@ -51,7 +51,7 @@ function generateAlbums() {
     foreach ($albums as $albumData) {
         $albumName = htmlspecialchars($albumData['album'] ?? 'Unknown Album');
         $artists = htmlspecialchars($albumData['artists'] ?? 'Unknown Artist');
-        $coverUrl = htmlspecialchars($albumData['cover'] ?? '');
+        $coverUrl = htmlspecialchars(getAlbumCoverSource($albumData['cover'] ?? ''), ENT_QUOTES, 'UTF-8');
         $albumLink = '?action=showalbums&playalbum=' . rawurlencode($albumData['album'] ?? '');
 
         $html .= '<div class="album-card">';
@@ -67,6 +67,17 @@ function generateAlbums() {
     $html .= '</div>';
 
     return $html;
+}
+
+function getAlbumCoverSource($cover) {
+    if (!is_string($cover) || $cover === '') {
+        return '';
+    }
+
+    $isLocalImage = preg_match('/^data:image\/(jpeg|png);base64,[A-Za-z0-9+\/]+=*$/', $cover) === 1;
+    $isRemoteImage = filter_var($cover, FILTER_VALIDATE_URL) && preg_match('/^https?:$/', parse_url($cover, PHP_URL_SCHEME));
+
+    return $isLocalImage || $isRemoteImage ? $cover : '';
 }
 
 // Helper function for stream/Icecast error handling

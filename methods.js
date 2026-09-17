@@ -241,4 +241,22 @@ async function getAlbumJpg(albumName, artistsName) {
   return url;
 }
 
-export { repopulateDB, listDB, streamFlacFile, startSilenceProcess, getAlbumJpg };
+function getLocalAlbumCover(songPath) {
+  if (!songPath) return null;
+
+  const albumDirectory = path.dirname(songPath);
+  const coverFile = fs.readdirSync(albumDirectory).find((fileName) => {
+    return /^cover\.(jpg|jpeg|png)$/i.test(fileName);
+  });
+
+  if (!coverFile) return null;
+
+  const coverPath = path.join(albumDirectory, coverFile);
+  const extension = path.extname(coverFile).toLowerCase();
+  const mimeType = extension === '.png' ? 'image/png' : 'image/jpeg';
+  const image = fs.readFileSync(coverPath).toString('base64');
+
+  return `data:${mimeType};base64,${image}`;
+}
+
+export { repopulateDB, listDB, streamFlacFile, startSilenceProcess, getAlbumJpg, getLocalAlbumCover };
