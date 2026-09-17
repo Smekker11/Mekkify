@@ -92,6 +92,7 @@ function resetUrl() {
 let streamUrl = '';
 let streamShouldPlay = false;
 let reconnectTimer = null;
+let playbackAttempt = 0;
 
 function getStreamUrlWithCacheBuster() {
     const separator = streamUrl.includes('?') ? '&' : '?';
@@ -103,33 +104,44 @@ function reconnectStream() {
 
     reconnectTimer = setTimeout(function() {
         reconnectTimer = null;
-        const player = document.getElementById('icecastPlayer');
-        if (!player || !streamShouldPlay) return;
-
-        player.src = getStreamUrlWithCacheBuster();
-        player.load();
-        player.play().catch(function(error) {
-            console.error('Stream reconnect failed:', error);
-            reconnectStream();
-        });
+        startPlayback(false);
     }, 1000);
 }
 
-function playStream(mountPoint) {
+async function startPlayback(showSuccessNotification) {
     const player = document.getElementById('icecastPlayer');
-    if (!player) return;
+    if (!player || !streamShouldPlay || !streamUrl) return;
 
-    streamUrl = mountPoint;
-    streamShouldPlay = true;
+    const attempt = ++playbackAttempt;
+    player.pause();
     player.src = getStreamUrlWithCacheBuster();
     player.load();
-    player.play().then(function() {
-        showNotification("Stream started playing!", "success");
-    }).catch(function(err) {
-        console.error("Playback failed:", err);
-        showNotification("Playback failed: " + err.message, "error");
+
+    try {
+        await player.play();
+        if (showSuccessNotification && attempt === playbackAttempt) {
+            showNotification("Stream started playing!", "success");
+        }
+    } catch (error) {
+        if (attempt !== playbackAttempt || error.name === 'AbortError') {
+            reconnectStream();
+            return;
+        }
+
+        console.error('Playback failed:', error);
+        showNotification('Playback failed: ' + error.message, 'error');
         reconnectStream();
-    });
+    }
+}
+
+function playStream(mountPoint) {
+    streamUrl = mountPoint;
+    streamShouldPlay = true;
+    if (reconnectTimer !== null) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+    }
+    startPlayback(true);
 }
 
 async function skipSong(event) {
