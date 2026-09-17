@@ -38,6 +38,7 @@
                     <a href="?play=1" class="action-button" onclick="contactApiStatus('Skipped a song')">Skip Song</a>
                 </div>
                 <p id="nowPlayingQuality" style="font-size: 0.9em; color: #666; margin: 5px 0;">No stream</p>
+                <audio id="icecastPlayer" preload="none"></audio>
             </section>
 
             <?php
@@ -83,21 +84,46 @@ function resetUrl() {
     window.location.href = url; // Reload the page without query parameters
 }
 
-function playStream(mountPoint) {
-    var player = document.getElementById("icecastPlayer");
-    if (!player) {
-        player = document.createElement("audio");
-        player.id = "icecastPlayer";
-        player.style.display = "none";
-        document.body.appendChild(player);
-    }
+let streamUrl = '';
+let streamShouldPlay = false;
+let reconnectTimer = null;
 
-    player.src = mountPoint;
+function getStreamUrlWithCacheBuster() {
+    const separator = streamUrl.includes('?') ? '&' : '?';
+    return `${streamUrl}${separator}client=${Date.now()}`;
+}
+
+function reconnectStream() {
+    if (!streamShouldPlay || reconnectTimer !== null) return;
+
+    reconnectTimer = setTimeout(function() {
+        reconnectTimer = null;
+        const player = document.getElementById('icecastPlayer');
+        if (!player || !streamShouldPlay) return;
+
+        player.src = getStreamUrlWithCacheBuster();
+        player.load();
+        player.play().catch(function(error) {
+            console.error('Stream reconnect failed:', error);
+            reconnectStream();
+        });
+    }, 1000);
+}
+
+function playStream(mountPoint) {
+    const player = document.getElementById('icecastPlayer');
+    if (!player) return;
+
+    streamUrl = mountPoint;
+    streamShouldPlay = true;
+    player.src = getStreamUrlWithCacheBuster();
+    player.load();
     player.play().then(function() {
         showNotification("Stream started playing!", "success");
     }).catch(function(err) {
         console.error("Playback failed:", err);
         showNotification("Playback failed: " + err.message, "error");
+        reconnectStream();
     });
 }
 
@@ -141,8 +167,7 @@ function showNotification(message, type) {
 }
 
 // Get config values from PHP
-const apiBaseUrl = '<?php echo htmlspecialchars($apiBaseUrl); ?>';
-const statusUrl = apiBaseUrl + 'icecast/status';
+const statusUrl = '<?php echo htmlspecialchars($apiBaseUrl . 'icecast/status', ENT_QUOTES); ?>';
 
 async function updateMetadata() {
     try {
@@ -201,9 +226,11 @@ async function updateMetadata() {
 // Update song data on page load and when playing
 document.addEventListener('DOMContentLoaded', function() {
     const audio = document.getElementById('icecastPlayer');
-    
+
     if (audio) {
-        // Sync playback state with mediaSession
+        audio.addEventListener('ended', reconnectStream);
+        audio.addEventListener('error', reconnectStream);
+        audio.addEventListener('stalled', reconnectStream);
         audio.addEventListener('play', () => {
             if ('mediaSession' in navigator) {
                 navigator.mediaSession.playbackState = 'playing';
