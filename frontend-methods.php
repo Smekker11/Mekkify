@@ -74,10 +74,9 @@ function getAlbumCoverSource($cover) {
         return '';
     }
 
-    $isLocalImage = preg_match('/^data:image\/(jpeg|png);base64,[A-Za-z0-9+\/]+=*$/', $cover) === 1;
     $isRemoteImage = filter_var($cover, FILTER_VALIDATE_URL) && preg_match('/^https?:$/', parse_url($cover, PHP_URL_SCHEME));
 
-    return $isLocalImage || $isRemoteImage ? $cover : '';
+    return $isRemoteImage ? $cover : '';
 }
 
 // Helper function for stream/Icecast error handling

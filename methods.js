@@ -248,27 +248,27 @@ async function getAlbumJpg(albumName, artistsName) {
   }
 }
 
-function getLocalAlbumCover(songPath) {
-  if (!songPath) return null;
+function hasLocalAlbumCover(songPath) {
+  if (!songPath) return false;
 
   try {
     const albumDirectory = path.dirname(songPath);
-    const coverFile = fs.readdirSync(albumDirectory).find((fileName) => {
+    return fs.readdirSync(albumDirectory).some((fileName) => {
       return /^cover\.(jpg|jpeg|png)$/i.test(fileName);
     });
-
-    if (!coverFile) return null;
-
-    const coverPath = path.join(albumDirectory, coverFile);
-    const extension = path.extname(coverFile).toLowerCase();
-    const mimeType = extension === '.png' ? 'image/png' : 'image/jpeg';
-    const image = fs.readFileSync(coverPath).toString('base64');
-
-    return `data:${mimeType};base64,${image}`;
   } catch (error) {
-    console.error(`Failed to read local cover for ${songPath}:`, error);
-    return null;
+    console.error(`Failed to inspect local cover for ${songPath}:`, error);
+    return false;
   }
 }
 
-export { repopulateDB, listDB, streamFlacFile, startSilenceProcess, getAlbumJpg, getLocalAlbumCover };
+async function getAlbumCover(albumName, artistsName, songPath) {
+  const artworkUrl = await getAlbumJpg(albumName, artistsName);
+  if (!artworkUrl || !songPath || hasLocalAlbumCover(songPath)) return artworkUrl;
+
+  const coverPath = path.join(path.dirname(songPath), 'cover.jpg');
+  await downloadRemoteImage(artworkUrl, coverPath);
+  return artworkUrl;
+}
+
+export { repopulateDB, listDB, streamFlacFile, startSilenceProcess, getAlbumJpg, getAlbumCover };
