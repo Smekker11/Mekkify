@@ -13,7 +13,7 @@
     <?php include 'frontend-methods.php'; ?>
     <div class="container">
         <header>
-            <h1>Mekkify Internet Radio 2.1 🍊</h1>
+            <h1>Mekkify Internet Radio 2.1.1 🍊</h1>
             <p>Flac quality mandarin music streaming service.</p>
         </header>
 
@@ -67,10 +67,11 @@
 
             <section class="news">
                 <h3>🍊📰 Mekkify News</h3>
-                <p>Mekkify V2.1 is now live! Spotify, Apple Music, and YT Music has now gone bankrupt!</p>
+                <p>Mekkify V2.1.1 is now live! Spotify, Apple Music, and YT Music has now gone bankrupt!</p>
                 <h3>BUGFIXES</h3>
                 <p>.mediarendering issue fixed!</p>
                 <p>.better albums structure in tree</p>
+                <p>.coverart cache</p>
             </section>
         </main>
 
@@ -185,10 +186,11 @@ async function updateMetadata() {
                 : data.icestats.source;
             
             const title = source.title || 'Mekkify Radio';
+            const coverKey = encodeURIComponent(`${title}|${source.artist || ''}`);
             if (title == 'Mekkify Radio') {
-                document.getElementById("nowPlayingCover").src = './mekkify_defo.jpg';
+                document.getElementById("nowPlayingCover").src = `./mekkify_defo.jpg?track=${coverKey}`;
             } else {
-                document.getElementById("nowPlayingCover").src = './cover.jpg';
+                document.getElementById("nowPlayingCover").src = `./cover.jpg?track=${coverKey}`;
             }
 
             const artist = source.artist || 'Mandarină audiofilă';
@@ -209,9 +211,9 @@ async function updateMetadata() {
             if ('mediaSession' in navigator) {
                 let artworkArr;
                 if (title == 'Mekkify Radio') {
-                    artworkArr = [{ src: './mekkify_defo.jpg', sizes: '300x300', type: 'image/jpeg' }];
+                    artworkArr = [{ src: `./mekkify_defo.jpg?track=${coverKey}`, sizes: '300x300', type: 'image/jpeg' }];
                 } else {
-                    artworkArr = [{ src: './cover.jpg', sizes: '300x300', type: 'image/jpeg' }];
+                    artworkArr = [{ src: `./cover.jpg?track=${coverKey}`, sizes: '300x300', type: 'image/jpeg' }];
                 }
                 navigator.mediaSession.metadata = new MediaMetadata({
                     title: title,
