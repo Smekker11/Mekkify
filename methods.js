@@ -236,27 +236,39 @@ async function startSilenceProcess() {
 }
 
 async function getAlbumJpg(albumName, artistsName) {
-  let url = await albumArt( artistsName, {album: albumName, size: 'medium'} );
-  console.log(`Fetched album art URL for ${albumName} by ${artistsName}: ${url}`);
-  return url;
+  try {
+    const artworkRequest = albumArt(artistsName, { album: albumName, size: 'medium' });
+    const timeout = new Promise((resolve) => setTimeout(() => resolve(null), 5000));
+    const url = await Promise.race([artworkRequest, timeout]);
+    console.log(`Fetched album art URL for ${albumName} by ${artistsName}: ${url}`);
+    return url;
+  } catch (error) {
+    console.error(`Failed to fetch album art for ${albumName} by ${artistsName}:`, error);
+    return null;
+  }
 }
 
 function getLocalAlbumCover(songPath) {
   if (!songPath) return null;
 
-  const albumDirectory = path.dirname(songPath);
-  const coverFile = fs.readdirSync(albumDirectory).find((fileName) => {
-    return /^cover\.(jpg|jpeg|png)$/i.test(fileName);
-  });
+  try {
+    const albumDirectory = path.dirname(songPath);
+    const coverFile = fs.readdirSync(albumDirectory).find((fileName) => {
+      return /^cover\.(jpg|jpeg|png)$/i.test(fileName);
+    });
 
-  if (!coverFile) return null;
+    if (!coverFile) return null;
 
-  const coverPath = path.join(albumDirectory, coverFile);
-  const extension = path.extname(coverFile).toLowerCase();
-  const mimeType = extension === '.png' ? 'image/png' : 'image/jpeg';
-  const image = fs.readFileSync(coverPath).toString('base64');
+    const coverPath = path.join(albumDirectory, coverFile);
+    const extension = path.extname(coverFile).toLowerCase();
+    const mimeType = extension === '.png' ? 'image/png' : 'image/jpeg';
+    const image = fs.readFileSync(coverPath).toString('base64');
 
-  return `data:${mimeType};base64,${image}`;
+    return `data:${mimeType};base64,${image}`;
+  } catch (error) {
+    console.error(`Failed to read local cover for ${songPath}:`, error);
+    return null;
+  }
 }
 
 export { repopulateDB, listDB, streamFlacFile, startSilenceProcess, getAlbumJpg, getLocalAlbumCover };

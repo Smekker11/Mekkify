@@ -44,30 +44,25 @@ app.get('/stream/:id', async (req, res) => {
 
 app.get('/list/albums', async (req, res) => {
     try {
-        const albums = await Songs.findAll({
-            attributes: [
-                [sequelize.fn('DISTINCT', sequelize.col('album')), 'album'],
-                'artists'
-            ],
-            group: ['album', 'artists']
+        const songs = await Songs.findAll({
+            attributes: ['album', 'artists', 'path']
         });
 
-        // Dedupe by album name, keeping only the first occurrence
-        const seen = new Set();
-        const unique = albums.filter(album => {
-            if (seen.has(album.album)) return false;
-            seen.add(album.album);
-            return true;
-        });
+        const uniqueAlbums = new Map();
+        for (const song of songs) {
+            const albumKey = `${song.album}\u0000${song.artists}`;
+            if (!uniqueAlbums.has(albumKey)) {
+                uniqueAlbums.set(albumKey, song);
+            }
+        }
 
-        const albumList = await Promise.all(unique.map(async (album) => {
-            const firstSong = await Songs.findOne({ where: { album: album.album } });
-            const localCover = firstSong ? getLocalAlbumCover(firstSong.path) : null;
+        const albumList = await Promise.all([...uniqueAlbums.values()].map(async (song) => {
+            const localCover = getLocalAlbumCover(song.path);
 
             return {
-                album: album.album,
-                artists: album.artists.split(/[;,&]/)[0].trim(), // primary artist only
-                cover: localCover || await getAlbumJpg(album.album, album.artists)
+                album: song.album,
+                artists: song.artists.split(/[;,&]/)[0].trim(), // primary artist only
+                cover: localCover || await getAlbumJpg(song.album, song.artists)
             };
         }));
 
