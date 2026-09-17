@@ -29,6 +29,7 @@ ffmpeg.setFfmpegPath('/usr/bin/ffmpeg');
 //define global ffmpeg instances
 let flacStreamProcess = null;
 let silenceStreamProcess = null;  
+let streamGeneration = 0;
 
 //refreshdb function
 let repopulateDB = async () => {
@@ -122,7 +123,9 @@ let listDB = async () => {
 }
 
 //grotesque function to stream with ffmpeg
-async function streamFlacFile(filePath, metadata) {
+async function streamFlacFile(filePath, metadata, options = {}) {
+  const { startSilenceOnClose = true } = options;
+  const generation = ++streamGeneration;
   const meta = {
     title:  metadata.title  || path.basename(filePath),
     artist: metadata.artist || 'Unknown Artist',
@@ -162,6 +165,7 @@ const ffmpegArgs = [
  
   return new Promise((resolve, reject) => {
     flacStreamProcess = spawn('ffmpeg', ffmpegArgs);
+    const currentProcess = flacStreamProcess;
 
     flacStreamProcess.stderr.on('data', (data) => {
       console.error(`FFmpeg stderr: ${data}`);
@@ -169,7 +173,7 @@ const ffmpegArgs = [
 
     flacStreamProcess.on('close', (code) => {
       console.log(`FFmpeg process exited with code ${code}`);
-      if (code === 0) {
+      if (code === 0 && startSilenceOnClose && generation === streamGeneration && flacStreamProcess === currentProcess) {
         startSilenceProcess();
       }
       resolve(); 

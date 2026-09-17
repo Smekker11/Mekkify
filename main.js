@@ -96,7 +96,7 @@ app.get('/stream/album/:album', async (req, res) => {
                     title:  song.title,
                     artist: song.artists,
                     album:  song.album
-                }); 
+                }, { startSilenceOnClose: false });
                 playQueue(index + 1); 
             } else {
                 console.error(`Invalid song path for song ID: ${song.songID}`);
@@ -184,7 +184,7 @@ app.get('/queue/:status', async (req, res) => {
                     title:  song.title,
                     artist: song.artists,
                     album:  song.album
-                }); 
+                }, { startSilenceOnClose: false });
                 playQueue(index + 1); 
             } else {
                 console.error(`Invalid song path for song ID: ${song.songID}`);
