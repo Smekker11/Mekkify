@@ -213,6 +213,16 @@ footer {
     max-width: 980px;
 }
 
+.album-pagination {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 20px 0;
+    padding: 0;
+    background: transparent;
+    border: 0;
+}
+
 .album-card {
     width: 300px;
     min-height: 380px;

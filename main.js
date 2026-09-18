@@ -44,6 +44,8 @@ app.get('/stream/:id', async (req, res) => {
 
 app.get('/list/albums', async (req, res) => {
     try {
+        const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
+        const pageSize = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 24, 1), 48);
         const songs = await Songs.findAll({
             attributes: ['album', 'artists', 'path']
         });
@@ -56,7 +58,8 @@ app.get('/list/albums', async (req, res) => {
             }
         }
 
-        const albumList = await Promise.all([...uniqueAlbums.values()].map(async (song) => {
+        const pageAlbums = [...uniqueAlbums.values()].slice((page - 1) * pageSize, page * pageSize);
+        const albumList = await Promise.all(pageAlbums.map(async (song) => {
             return {
                 album: song.album,
                 artists: song.artists.split(/[;,&]/)[0].trim(), // primary artist only

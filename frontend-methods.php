@@ -37,7 +37,9 @@ function handleApiError($message, $attemptedUrl, $additionalInfo = '') {
 
 function generateAlbums() {
     global $apiBaseUrl;
-    $url = $apiBaseUrl . 'list/albums';
+    $page = max((int) ($_GET['album_page'] ?? 1), 1);
+    $pageSize = 24;
+    $url = $apiBaseUrl . 'list/albums?page=' . $page . '&limit=' . $pageSize;
     $response = file_get_contents($url);
     if ($response === FALSE) {
         handleApiError('Failed to fetch album list.', $url);
@@ -64,6 +66,16 @@ function generateAlbums() {
         $html .= '</a>';
         $html .= '</div>';
     }
+    $previousPage = $page - 1;
+    $nextPage = $page + 1;
+    $html .= '<nav class="album-pagination">';
+    if ($page > 1) {
+        $html .= '<a class="action-button" href="?action=showalbums&album_page=' . $previousPage . '">Previous</a>';
+    }
+    if (count($albums) === $pageSize) {
+        $html .= '<a class="action-button" href="?action=showalbums&album_page=' . $nextPage . '">Next</a>';
+    }
+    $html .= '</nav>';
     $html .= '</div>';
 
     return $html;
