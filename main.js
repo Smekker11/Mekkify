@@ -94,7 +94,16 @@ app.get('/album-cover', async (req, res) => {
             return;
         }
 
-        res.sendFile(coverPath);
+        if (!fs.existsSync(coverPath)) {
+            res.status(404).send({ status: 'Album cover file is unavailable.' });
+            return;
+        }
+
+        res.sendFile(coverPath, (error) => {
+            if (error && !res.headersSent) {
+                res.status(error.statusCode || 500).send({ status: 'Error serving album cover.' });
+            }
+        });
     } catch (err) {
         res.status(500).send({ status: 'Error loading album cover: ' + err.message });
     }

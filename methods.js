@@ -298,7 +298,7 @@ function getLocalAlbumCoverPath(songPath) {
       return /^cover\.(jpg|jpeg|png)$/i.test(fileName);
     });
 
-    return coverFile ? path.join(albumDirectory, coverFile) : null;
+    return coverFile ? path.resolve(albumDirectory, coverFile) : null;
   } catch (error) {
     console.error(`Failed to resolve local cover for ${songPath}:`, error);
     return null;
@@ -309,7 +309,7 @@ async function getOptimizedAlbumCoverPath(songPath) {
   const coverPath = getLocalAlbumCoverPath(songPath);
   if (!coverPath) return null;
 
-  const thumbnailPath = path.join(path.dirname(coverPath), '.cover-thumb.jpg');
+  const thumbnailPath = path.resolve(path.dirname(coverPath), '.cover-thumb.jpg');
   try {
     const sourceStats = await fs.promises.stat(coverPath);
     const thumbnailStats = await fs.promises.stat(thumbnailPath).catch(() => null);
@@ -334,7 +334,7 @@ async function getOptimizedAlbumCoverPath(songPath) {
     return thumbnailPath;
   } catch (error) {
     console.error(`Failed to optimize local cover for ${songPath}:`, error);
-    return coverPath;
+    return fs.existsSync(coverPath) ? coverPath : null;
   }
 }
 
