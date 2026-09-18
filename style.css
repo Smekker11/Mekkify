@@ -216,11 +216,41 @@ footer {
 .album-pagination {
     display: flex;
     justify-content: center;
+    align-items: center;
     gap: 10px;
-    margin: 20px 0;
-    padding: 0;
+    margin: 4px auto 22px;
+    padding: 8px;
+    width: fit-content;
     background: transparent;
     border: 0;
+}
+
+.pagination-button,
+.pagination-button:visited {
+    display: inline-block;
+    min-width: 112px;
+    padding: 9px 14px;
+    border: 1px solid #a5422b;
+    border-radius: 6px;
+    background-color: #d4733f;
+    box-shadow: 2px 2px #aa562c;
+    color: #fff8dc;
+    text-align: center;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.pagination-button:hover,
+.pagination-button:focus {
+    background-color: #e5884f;
+    color: #ffffff;
+}
+
+.pagination-status {
+    min-width: 72px;
+    color: #5e2d1a;
+    font-weight: bold;
+    text-align: center;
 }
 
 .album-card {

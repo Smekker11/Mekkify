@@ -49,7 +49,18 @@ function generateAlbums() {
         return "<p>Invalid album data.</p>";
     }
 
-    $html = '<div class="album-grid">';
+    $previousPage = $page - 1;
+    $nextPage = $page + 1;
+    $html = '<nav class="album-pagination" aria-label="Album pages">';
+    if ($page > 1) {
+        $html .= '<a class="pagination-button" href="?action=showalbums&album_page=' . $previousPage . '" aria-label="Previous album page">&#8592; Previous</a>';
+    }
+    $html .= '<span class="pagination-status">Page ' . $page . '</span>';
+    if (count($albums) === $pageSize) {
+        $html .= '<a class="pagination-button" href="?action=showalbums&album_page=' . $nextPage . '" aria-label="Next album page">Next &#8594;</a>';
+    }
+    $html .= '</nav>';
+    $html .= '<div class="album-grid">';
     foreach ($albums as $albumData) {
         $albumName = htmlspecialchars($albumData['album'] ?? 'Unknown Album');
         $artists = htmlspecialchars($albumData['artists'] ?? 'Unknown Artist');
@@ -66,16 +77,6 @@ function generateAlbums() {
         $html .= '</a>';
         $html .= '</div>';
     }
-    $previousPage = $page - 1;
-    $nextPage = $page + 1;
-    $html .= '<nav class="album-pagination">';
-    if ($page > 1) {
-        $html .= '<a class="action-button" href="?action=showalbums&album_page=' . $previousPage . '">Previous</a>';
-    }
-    if (count($albums) === $pageSize) {
-        $html .= '<a class="action-button" href="?action=showalbums&album_page=' . $nextPage . '">Next</a>';
-    }
-    $html .= '</nav>';
     $html .= '</div>';
 
     return $html;
