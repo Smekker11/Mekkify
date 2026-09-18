@@ -295,7 +295,9 @@ async function getAlbumCover(albumName, artistsName, songPath) {
   if (!artworkUrl || !songPath || hasLocalAlbumCover(songPath)) return artworkUrl;
 
   const coverPath = path.join(path.dirname(songPath), 'cover.jpg');
-  await downloadRemoteImage(artworkUrl, coverPath);
+  downloadRemoteImage(artworkUrl, coverPath).catch((error) => {
+    console.error(`Failed to cache album artwork for ${albumName}:`, error);
+  });
   return artworkUrl;
 }
 

@@ -56,7 +56,7 @@ function generateAlbums() {
 
         $html .= '<div class="album-card">';
         $html .= '<a href="' . $albumLink . '" onclick="contactApiStatus(\'Contacting album stream...\')">';
-        $html .= '<img src="' . $coverUrl . '" alt="Cover art for ' . $albumName . '">';
+        $html .= '<img src="' . $coverUrl . '" alt="Cover art for ' . $albumName . '" loading="lazy" decoding="async" fetchpriority="low" onerror="this.onerror=null;this.src=\'./mekkify_defo.jpg\';">';
         $html .= '<div class="album-card-meta">';
         $html .= '<span class="album-title">' . $albumName . '</span>';
         $html .= '<span class="album-artists">' . $artists . '</span>';
@@ -268,5 +268,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$songlist = fetchSongList();
+$songlist = null;
+if (isset($_GET['action']) && $_GET['action'] === 'showtable') {
+    $songlist = fetchSongList();
+}
 ?>
