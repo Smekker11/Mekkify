@@ -12,7 +12,7 @@ import { Queue } from "./db/queue-db.conf.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8'));
-const { givenPath, icecastserver, silenceArgs: silenceArgsBase } = config;
+const { givenPath, apiBaseUrl, icecastserver, silenceArgs: silenceArgsBase } = config;
 
 // Build silenceArgs with dynamic icecast URL
 const icecastUrl = `icecast://${encodeURIComponent(icecastserver.ICECAST_USER)}:${encodeURIComponent(icecastserver.ICECAST_PASSWORD)}@${icecastserver.ICECAST_HOST}:${icecastserver.ICECAST_PORT}${icecastserver.ICECAST_MOUNT}`;
@@ -262,7 +262,29 @@ function hasLocalAlbumCover(songPath) {
   }
 }
 
+function getLocalAlbumCoverPath(songPath) {
+  if (!songPath) return null;
+
+  try {
+    const albumDirectory = path.dirname(songPath);
+    const coverFile = fs.readdirSync(albumDirectory).find((fileName) => {
+      return /^cover\.(jpg|jpeg|png)$/i.test(fileName);
+    });
+
+    return coverFile ? path.join(albumDirectory, coverFile) : null;
+  } catch (error) {
+    console.error(`Failed to resolve local cover for ${songPath}:`, error);
+    return null;
+  }
+}
+
 async function getAlbumCover(albumName, artistsName, songPath) {
+  const localCoverPath = getLocalAlbumCoverPath(songPath);
+  if (localCoverPath) {
+    const coverUrl = `${apiBaseUrl.replace(/\/$/, '')}/album-cover?album=${encodeURIComponent(albumName)}`;
+    return coverUrl;
+  }
+
   const artworkUrl = await getAlbumJpg(albumName, artistsName);
   if (!artworkUrl || !songPath || hasLocalAlbumCover(songPath)) return artworkUrl;
 
@@ -271,4 +293,4 @@ async function getAlbumCover(albumName, artistsName, songPath) {
   return artworkUrl;
 }
 
-export { repopulateDB, listDB, streamFlacFile, startSilenceProcess, getAlbumJpg, getAlbumCover };
+export { repopulateDB, listDB, streamFlacFile, startSilenceProcess, getAlbumJpg, getAlbumCover, getLocalAlbumCoverPath };

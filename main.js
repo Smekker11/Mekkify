@@ -1,4 +1,4 @@
-import { repopulateDB, listDB, streamFlacFile, startSilenceProcess, getAlbumCover } from './methods.js';
+import { repopulateDB, listDB, streamFlacFile, startSilenceProcess, getAlbumCover, getLocalAlbumCoverPath } from './methods.js';
 import { Songs } from './db/tmp-db-conf.js';
 import { Queue } from './db/queue-db.conf.js';
 import { sequelize } from './db/tmp-db-conf.js';
@@ -67,6 +67,31 @@ app.get('/list/albums', async (req, res) => {
         res.status(200).send(albumList);
     } catch (err) {
         res.status(500).send({status: 'Error fetching albums: ' + err.message});
+    }
+});
+
+app.get('/album-cover', async (req, res) => {
+    const albumName = req.query.album;
+    if (typeof albumName !== 'string' || !albumName) {
+        res.status(400).send({ status: 'Album name is required.' });
+        return;
+    }
+
+    try {
+        const song = await Songs.findOne({
+            where: { album: albumName },
+            attributes: ['path']
+        });
+        const coverPath = song ? getLocalAlbumCoverPath(song.path) : null;
+
+        if (!coverPath) {
+            res.status(404).send({ status: 'Album cover not found.' });
+            return;
+        }
+
+        res.sendFile(coverPath);
+    } catch (err) {
+        res.status(500).send({ status: 'Error loading album cover: ' + err.message });
     }
 });
 

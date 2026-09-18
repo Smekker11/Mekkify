@@ -71,12 +71,12 @@ function generateAlbums() {
 
 function getAlbumCoverSource($cover) {
     if (!is_string($cover) || $cover === '') {
-        return '';
+        return './mekkify_defo.jpg';
     }
 
     $isRemoteImage = filter_var($cover, FILTER_VALIDATE_URL) && preg_match('/^https?:$/', parse_url($cover, PHP_URL_SCHEME));
 
-    return $isRemoteImage ? $cover : '';
+    return $isRemoteImage ? $cover : './mekkify_defo.jpg';
 }
 
 // Helper function for stream/Icecast error handling
