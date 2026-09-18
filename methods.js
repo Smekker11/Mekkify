@@ -309,7 +309,7 @@ async function getOptimizedAlbumCoverPath(songPath) {
   const coverPath = getLocalAlbumCoverPath(songPath);
   if (!coverPath) return null;
 
-  const thumbnailPath = path.resolve(path.dirname(coverPath), '.cover-thumb.jpg');
+  const thumbnailPath = path.resolve(path.dirname(coverPath), 'cover-thumb.jpg');
   try {
     const sourceStats = await fs.promises.stat(coverPath);
     const thumbnailStats = await fs.promises.stat(thumbnailPath).catch(() => null);
