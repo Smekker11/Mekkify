@@ -31,6 +31,13 @@ let flacStreamProcess = null;
 let silenceStreamProcess = null;  
 let streamGeneration = 0;
 
+function getPrimaryArtist(metadata) {
+  const artist = metadata.common.artists?.[0] || metadata.common.artist || 'Unknown Artist';
+  return artist
+    .split(/\s*(?:feat(?:uring)?|ft)\s*\.?\s*:?\s+|[;,&]/i)[0]
+    .trim() || 'Unknown Artist';
+}
+
 //refreshdb function
 let repopulateDB = async () => {
   let flacArray = await listFilesRecursively(givenPath);
@@ -39,7 +46,7 @@ let repopulateDB = async () => {
       let metadata = await mm.parseFile(flacfile);
       await Songs.create({
         title: metadata.common.title || 'Unknown Title',
-        artists: metadata.common.artist || 'Unknown Artist',
+        artists: getPrimaryArtist(metadata),
         album: metadata.common.album || 'Unknown Album',
         path: flacfile
       });
