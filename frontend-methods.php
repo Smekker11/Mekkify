@@ -74,7 +74,8 @@ function getAlbumCoverSource($cover) {
         return './mekkify_defo.jpg';
     }
 
-    $isRemoteImage = filter_var($cover, FILTER_VALIDATE_URL) && preg_match('/^https?:$/', parse_url($cover, PHP_URL_SCHEME));
+    $scheme = strtolower((string) parse_url($cover, PHP_URL_SCHEME));
+    $isRemoteImage = filter_var($cover, FILTER_VALIDATE_URL) && in_array($scheme, ['http', 'https'], true);
 
     return $isRemoteImage ? $cover : './mekkify_defo.jpg';
 }
