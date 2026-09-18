@@ -1,4 +1,4 @@
-import { repopulateDB, listDB, streamFlacFile, startSilenceProcess, getAlbumCover, getLocalAlbumCoverPath } from './methods.js';
+import { repopulateDB, listDB, streamFlacFile, startSilenceProcess, getAlbumCover, getLocalAlbumCoverPath, getOptimizedAlbumCoverPath } from './methods.js';
 import { Songs } from './db/tmp-db-conf.js';
 import { Queue } from './db/queue-db.conf.js';
 import { sequelize } from './db/tmp-db-conf.js';
@@ -17,12 +17,14 @@ import { get } from 'http';
 
 const app = express();
 app.use(cors());
+let playbackSession = 0;
 
 startSilenceProcess(); // Radio silence defaulted
 repopulateDB(); // default repop DB
 
 app.get('/stream/:id', async (req, res) => {
     const songId = req.params.id; 
+    playbackSession += 1;
     console.log('songId:', songId);
     try {
         const song = await Songs.findByPk(songId);
@@ -85,7 +87,7 @@ app.get('/album-cover', async (req, res) => {
             where: { album: albumName },
             attributes: ['path']
         });
-        const coverPath = song ? getLocalAlbumCoverPath(song.path) : null;
+        const coverPath = song ? await getOptimizedAlbumCoverPath(song.path) : null;
 
         if (!coverPath) {
             res.status(404).send({ status: 'Album cover not found.' });
@@ -100,6 +102,7 @@ app.get('/album-cover', async (req, res) => {
 
 app.get('/stream/album/:album', async (req, res) => {
     const albumName = req.params.album; 
+    const session = ++playbackSession;
     console.log('albumName:', albumName);
     try {
         const songs = await Songs.findAll({ where: { album: albumName } });
@@ -109,6 +112,7 @@ app.get('/stream/album/:album', async (req, res) => {
         }
 
         const playQueue = async (index) => {
+            if (session !== playbackSession) return;
             if (index >= songs.length) {
                 console.log('End of queue reached.');
                 startSilenceProcess(); 
@@ -123,10 +127,10 @@ app.get('/stream/album/:album', async (req, res) => {
                     artist: song.artists,
                     album:  song.album
                 }, { startSilenceOnClose: false });
-                playQueue(index + 1); 
+                if (session === playbackSession) await playQueue(index + 1);
             } else {
                 console.error(`Invalid song path for song ID: ${song.songID}`);
-                playQueue(index + 1); 
+                await playQueue(index + 1);
             }
         };
 
@@ -190,6 +194,7 @@ app.get('/queue/add/:id', async (req, res) => {
 //toggle queue
 app.get('/queue/:status', async (req, res) => {
     if (req.params.status === 'true') {
+        const session = ++playbackSession;
         const queue = await Queue.findAll();
         if (queue.length === 0) {
             res.status(404).send({status: 'Queue is empty.'});
@@ -197,6 +202,7 @@ app.get('/queue/:status', async (req, res) => {
         }
 
         const playQueue = async (index) => {
+            if (session !== playbackSession) return;
             if (index >= queue.length) {
                 console.log('End of queue reached.');
                 startSilenceProcess(); 
@@ -211,16 +217,17 @@ app.get('/queue/:status', async (req, res) => {
                     artist: song.artists,
                     album:  song.album
                 }, { startSilenceOnClose: false });
-                playQueue(index + 1); 
+                if (session === playbackSession) await playQueue(index + 1);
             } else {
                 console.error(`Invalid song path for song ID: ${song.songID}`);
-                playQueue(index + 1); 
+                await playQueue(index + 1);
             }
         };
 
         playQueue(0);
         res.status(200).send({status: 'Queue started.'});
     } else if (req.params.status === 'false') {
+        playbackSession += 1;
         startSilenceProcess();
         res.status(200).send({status: 'Queue stopped.'});
     } else {
@@ -231,6 +238,7 @@ app.get('/queue/:status', async (req, res) => {
 // Drop queue
 app.get('/drop/queue', async (req, res) => {
     try {
+    playbackSession += 1;
         await Queue.destroy({ where: {} });
         await startSilenceProcess()
         res.status(200).send({status: 'Queue dropped successfully.'});

@@ -30,6 +30,43 @@ ffmpeg.setFfmpegPath('/usr/bin/ffmpeg');
 let flacStreamProcess = null;
 let silenceStreamProcess = null;  
 let streamGeneration = 0;
+let sourceTransition = Promise.resolve();
+
+function stopProcess(process, label) {
+  if (!process || process.exitCode !== null) return Promise.resolve();
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+
+    process.once('close', finish);
+    process.once('error', finish);
+    process.kill('SIGTERM');
+    setTimeout(finish, 2000);
+    console.log(`Stopping existing ${label} process...`);
+  });
+}
+
+async function stopCurrentProcesses() {
+  sourceTransition = sourceTransition.then(async () => {
+    if (silenceStreamProcess) {
+      const processToStop = silenceStreamProcess;
+      silenceStreamProcess = null;
+      await stopProcess(processToStop, 'silence');
+    }
+    if (flacStreamProcess) {
+      const processToStop = flacStreamProcess;
+      flacStreamProcess = null;
+      await stopProcess(processToStop, 'song');
+    }
+  });
+
+  await sourceTransition;
+}
 
 function getPrimaryArtist(metadata) {
   const artist = metadata.common.artists?.[0] || metadata.common.artist || 'Unknown Artist';
@@ -139,16 +176,7 @@ async function streamFlacFile(filePath, metadata, options = {}) {
     album:  metadata.album  || 'Unknown Album',
   };
   await extractCoverArt(filePath);
-  if (silenceStreamProcess) {
-    console.log('Stopping existing stream...');
-    await silenceStreamProcess.kill('SIGTERM'); 
-    silenceStreamProcess = null;
-  }
-  if (flacStreamProcess) {
-    console.log('Stopping existing stream...');
-    await flacStreamProcess.kill('SIGTERM'); 
-    flacStreamProcess = null;
-  }
+  await stopCurrentProcesses();
    
 //FFMPEG ARGS
 const ffmpegArgs = [
@@ -156,6 +184,7 @@ const ffmpegArgs = [
   '-i', filePath,     // Input FLAC file or stream
   '-c:a', 'libvorbis', // Use the Vorbis encoder
   '-b:a', '192k',     // Set audio bitrate to 192 kbps for good quality
+    '-af', 'loudnorm=I=-16:LRA=11:TP=-1.5', // Normalize program loudness and limit peaks
   '-ar', '44100',     // Set audio sample rate to 44.1 kHz
   '-ac', '2',         // Ensure stereo audio
   // Pass text metadata to Icecast
@@ -214,16 +243,7 @@ function listFilesRecursively(dirPath) {
 
 //grotesque function to silence with ffmpeg
 async function startSilenceProcess() {
-  if (silenceStreamProcess) {
-    console.log('Stopping existing stream...');
-    await silenceStreamProcess.kill('SIGTERM'); 
-    silenceStreamProcess = null;
-  }
-  if (flacStreamProcess) {
-    console.log('Stopping existing stream...');
-    await flacStreamProcess.kill('SIGTERM'); 
-    flacStreamProcess = null;
-  }
+  await stopCurrentProcesses();
 
   const voidSoundEntity = spawn('ffmpeg', silenceArgsWithIce);
 
@@ -285,6 +305,39 @@ function getLocalAlbumCoverPath(songPath) {
   }
 }
 
+async function getOptimizedAlbumCoverPath(songPath) {
+  const coverPath = getLocalAlbumCoverPath(songPath);
+  if (!coverPath) return null;
+
+  const thumbnailPath = path.join(path.dirname(coverPath), '.cover-thumb.jpg');
+  try {
+    const sourceStats = await fs.promises.stat(coverPath);
+    const thumbnailStats = await fs.promises.stat(thumbnailPath).catch(() => null);
+    if (thumbnailStats && thumbnailStats.mtimeMs >= sourceStats.mtimeMs) {
+      return thumbnailPath;
+    }
+
+    await new Promise((resolve, reject) => {
+      ffmpeg(coverPath)
+        .outputOptions([
+          '-y',
+          '-vf', 'scale=300:300:force_original_aspect_ratio=decrease',
+          '-q:v', '5',
+          '-frames:v', '1'
+        ])
+        .output(thumbnailPath)
+        .on('end', resolve)
+        .on('error', reject)
+        .run();
+    });
+
+    return thumbnailPath;
+  } catch (error) {
+    console.error(`Failed to optimize local cover for ${songPath}:`, error);
+    return coverPath;
+  }
+}
+
 async function getAlbumCover(albumName, artistsName, songPath) {
   const localCoverPath = getLocalAlbumCoverPath(songPath);
   if (localCoverPath) {
@@ -301,4 +354,4 @@ async function getAlbumCover(albumName, artistsName, songPath) {
   return artworkUrl;
 }
 
-export { repopulateDB, listDB, streamFlacFile, startSilenceProcess, getAlbumJpg, getAlbumCover, getLocalAlbumCoverPath };
+export { repopulateDB, listDB, streamFlacFile, startSilenceProcess, getAlbumJpg, getAlbumCover, getLocalAlbumCoverPath, getOptimizedAlbumCoverPath };
