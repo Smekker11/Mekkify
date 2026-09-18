@@ -53,11 +53,15 @@ function generateAlbums() {
     $nextPage = $page + 1;
     $html = '<nav class="album-pagination" aria-label="Album pages">';
     if ($page > 1) {
-        $html .= '<a class="pagination-button" href="?action=showalbums&album_page=' . $previousPage . '" aria-label="Previous album page">&#8592; Previous</a>';
+        $html .= '<a class="pagination-button pagination-previous" href="?action=showalbums&album_page=' . $previousPage . '" aria-label="Previous album page">Previous</a>';
+    } else {
+        $html .= '<span class="pagination-spacer" aria-hidden="true"></span>';
     }
-    $html .= '<span class="pagination-status">Page ' . $page . '</span>';
+    $html .= '<span class="pagination-status"><span class="pagination-label">Albums</span>Page ' . $page . '</span>';
     if (count($albums) === $pageSize) {
-        $html .= '<a class="pagination-button" href="?action=showalbums&album_page=' . $nextPage . '" aria-label="Next album page">Next &#8594;</a>';
+        $html .= '<a class="pagination-button pagination-next" href="?action=showalbums&album_page=' . $nextPage . '" aria-label="Next album page">Next</a>';
+    } else {
+        $html .= '<span class="pagination-spacer" aria-hidden="true"></span>';
     }
     $html .= '</nav>';
     $html .= '<div class="album-grid">';

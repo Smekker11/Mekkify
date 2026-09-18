@@ -215,26 +215,25 @@ footer {
 
 .album-pagination {
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
-    gap: 10px;
-    margin: 4px auto 22px;
-    padding: 8px;
-    width: fit-content;
-    background: transparent;
-    border: 0;
+    gap: 16px;
+    margin: 20px auto 8px;
+    padding: 10px 0;
+    width: min(980px, 100%);
+    border-top: 1px solid #e1b562;
+    border-bottom: 1px solid #e1b562;
 }
 
 .pagination-button,
 .pagination-button:visited {
     display: inline-block;
-    min-width: 112px;
-    padding: 9px 14px;
-    border: 1px solid #a5422b;
-    border-radius: 6px;
-    background-color: #d4733f;
-    box-shadow: 2px 2px #aa562c;
-    color: #fff8dc;
+    min-width: 92px;
+    padding: 7px 12px;
+    border: 1px solid #cc7a00;
+    border-radius: 3px;
+    background-color: #fff7df;
+    color: #5e2d1a;
     text-align: center;
     text-decoration: none;
     font-weight: bold;
@@ -242,15 +241,30 @@ footer {
 
 .pagination-button:hover,
 .pagination-button:focus {
-    background-color: #e5884f;
-    color: #ffffff;
+    background-color: #ffe6b0;
+    color: #4a2c17;
 }
 
 .pagination-status {
-    min-width: 72px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 90px;
     color: #5e2d1a;
     font-weight: bold;
     text-align: center;
+}
+
+.pagination-label {
+    color: #8b5a32;
+    font-size: 0.72em;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.pagination-spacer {
+    display: block;
+    min-width: 92px;
 }
 
 .album-card {
