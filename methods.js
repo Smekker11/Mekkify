@@ -281,8 +281,7 @@ function getLocalAlbumCoverPath(songPath) {
 async function getAlbumCover(albumName, artistsName, songPath) {
   const localCoverPath = getLocalAlbumCoverPath(songPath);
   if (localCoverPath) {
-    const coverUrl = `${apiBaseUrl.replace(/\/$/, '')}/album-cover?album=${encodeURIComponent(albumName)}`;
-    return coverUrl;
+    return `album-cover?album=${encodeURIComponent(albumName)}`;
   }
 
   const artworkUrl = await getAlbumJpg(albumName, artistsName);

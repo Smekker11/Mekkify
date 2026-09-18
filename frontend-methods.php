@@ -70,8 +70,14 @@ function generateAlbums() {
 }
 
 function getAlbumCoverSource($cover) {
+    global $apiBaseUrl;
+
     if (!is_string($cover) || $cover === '') {
         return './mekkify_defo.jpg';
+    }
+
+    if (str_starts_with($cover, 'album-cover?')) {
+        return rtrim($apiBaseUrl, '/') . '/' . $cover;
     }
 
     $scheme = strtolower((string) parse_url($cover, PHP_URL_SCHEME));
