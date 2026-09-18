@@ -30,6 +30,7 @@ ffmpeg.setFfmpegPath('/usr/bin/ffmpeg');
 let flacStreamProcess = null;
 let silenceStreamProcess = null;  
 let streamGeneration = 0;
+let skipRequestGeneration = 0;
 let sourceTransition = Promise.resolve();
 
 function stopProcess(process, label) {
@@ -58,6 +59,19 @@ async function stopCurrentProcesses() {
       silenceStreamProcess = null;
       await stopProcess(processToStop, 'silence');
     }
+    if (flacStreamProcess) {
+      const processToStop = flacStreamProcess;
+      flacStreamProcess = null;
+      await stopProcess(processToStop, 'song');
+    }
+  });
+
+  await sourceTransition;
+}
+
+async function stopCurrentSong() {
+  skipRequestGeneration = streamGeneration;
+  sourceTransition = sourceTransition.then(async () => {
     if (flacStreamProcess) {
       const processToStop = flacStreamProcess;
       flacStreamProcess = null;
@@ -176,6 +190,7 @@ async function streamFlacFile(filePath, metadata, options = {}) {
     album:  metadata.album  || 'Unknown Album',
   };
   await extractCoverArt(filePath);
+  if (generation <= skipRequestGeneration) return;
   await stopCurrentProcesses();
    
 //FFMPEG ARGS
@@ -354,4 +369,4 @@ async function getAlbumCover(albumName, artistsName, songPath) {
   return artworkUrl;
 }
 
-export { repopulateDB, listDB, streamFlacFile, startSilenceProcess, getAlbumJpg, getAlbumCover, getLocalAlbumCoverPath, getOptimizedAlbumCoverPath };
+export { repopulateDB, listDB, streamFlacFile, startSilenceProcess, stopCurrentSong, getAlbumJpg, getAlbumCover, getLocalAlbumCoverPath, getOptimizedAlbumCoverPath };
