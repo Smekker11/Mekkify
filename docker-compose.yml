@@ -1,0 +1,13 @@
+services:
+  mekkify:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mekkify
+    network_mode: host
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./config.json:/app/config.json:ro
+      - /path/to/your/flacs:/music:ro
+    restart: unless-stopped
