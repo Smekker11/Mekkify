@@ -13,7 +13,8 @@
     <?php include 'frontend-methods.php'; ?>
     <div class="container">
         <header>
-            <h1>Mekkify Internet Radio 2.3 🍊</h1>
+            <h1>Mekkify Internet Radio 2.3.1 🍊</h1>
+            <p>A fruit should never wear headphones!</p>
             <p>Flac quality mandarin music streaming service.</p>
         </header>
 
@@ -67,12 +68,9 @@
 
             <section class="news">
                 <h3>🍊📰 Mekkify News</h3>
-                <p>Mekkify V2.3 is now live! Ever-expanding library!</p>
-                <p>BUGFIXES</p>
-                <p>.callback handoff fixed!</p>
-                <p>.mediarendering issue fixed!</p>
-                <p>.better albums structure in tree</p>
-                <p>.coverart cache</p>
+                <p>Version update Mekkify V2.3.1!</p>
+                <p>CONTAINERIZED!</p>
+                <p>.silence process error fixed</p>
             </section>
         </main>
 
