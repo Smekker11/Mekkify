@@ -8,6 +8,8 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
+
       - ./config.json:/app/config.json:ro
       - /path/to/your/flacs:/music:ro
+      - ./cover.jpg:/app/cover.jpg:rw
     restart: unless-stopped
