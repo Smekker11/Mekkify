@@ -1,0 +1,17 @@
+FFmpeg stderr (silence): [aost#0:0/libvorbis @ 0x6063d4d20340] Error submitting a packet to the muxer: Broken pipe
+    Last message repeated 1 times
+[out#0/ogg @ 0x6063d4d1ff00] Error muxing a packet
+[out#0/ogg @ 0x6063d4d1ff00] Task finished with error code: -32 (Broken pipe)
+[out#0/ogg @ 0x6063d4d1ff00] Terminating thread with return code -32 (Broken pipe)
+
+FFmpeg stderr (silence): [out#0/ogg @ 0x6063d4d1ff00] Error writing trailer: Broken pipe
+[out#0/ogg @ 0x6063d4d1ff00] Error closing file: Broken pipe
+
+FFmpeg stderr (silence): [out#0/ogg @ 0x6063d4d1ff00] video:0KiB audio:1507KiB subtitle:0KiB other streams:0KiB global headers:4KiB muxing overhead: 161.627751%
+size=    3942KiB time=09:57:09.21 bitrate=   0.9kbits/s speed=   1x elapsed=9:57:08.77
+
+FFmpeg stderr (silence): Conversion failed!
+
+FFmpeg process (silence) exited with code 224
+Executing (default): SELECT `id`, `title`, `artists`, `album`, `path`, `createdAt`, `updatedAt` FROM `songs` AS `Songs`;
+^C
