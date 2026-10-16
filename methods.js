@@ -266,6 +266,9 @@ async function startSilenceProcess() {
     console.error(`FFmpeg stderr (silence): ${data}`);
   });
 
+  let retries = 0;
+  const maxRetries = 3;
+
   voidSoundEntity.on('close', (code) => {
     console.log(`FFmpeg process (silence) exited with code ${code}`);
      if (code === 224 && retries < maxRetries) { // FFmpeg exit code for "Broken pipe" is typically 255, but in this case, it's 224
@@ -281,7 +284,7 @@ async function startSilenceProcess() {
 
   voidSoundEntity.on('error', (err) => {
     console.error(`FFmpeg process (silence) error: ${err}`);
-    
+
     if (retries < maxRetries) {
       console.log(`Silence process encountered an error. Retrying... (Attempt ${retries + 1}/${maxRetries})`);
       retries++;
