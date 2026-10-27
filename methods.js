@@ -208,18 +208,18 @@ async function streamFlacFile(filePath, metadata, options = {}) {
   if (currentGen < streamGeneration) return;
    
   const ffmpegArgs = [
-    '-threads', '0',          // Allow FFmpeg to use all available container cores for decoding
-    '-max_muxing_queue_size', '4096', // Prevents buffer overflow and broken pipes on high-bitrate files
-    '-fflags', '+genpts',     // Fixes timestamps
-    '-i', filePath,         // Input FLAC file or stream
-    '-map', '0:a:0',        // Explicitly map only the primary audio stream (ignores embedded art)
-    '-map_metadata', '-1',  // Wipe out bloated input tags (prevents Ogg header crashes)
+    '-fflags', '+genpts',     // Input option (must stay before -i)
+    '-i', filePath,         // Input file
+    '-threads', '0',          // Output option (must be after -i)
+    '-max_muxing_queue_size', '4096', // Output option (must be after -i)
+    '-map', '0:a:0',        // Explicitly map only the primary audio stream
+    '-map_metadata', '-1',  // Wipe out bloated input tags
     '-metadata', `title=${meta.title}`,   
     '-metadata', `artist=${meta.artist}`, 
     '-metadata', `album=${meta.album}`,   
     '-c:a', 'libvorbis',    // Use the Vorbis encoder
     '-b:a', '192k',         // Set audio bitrate to 192 kbps
-    '-af', 'loudnorm=I=-16:LRA=11:TP=-1.5', // Normalization at native sample rate (no resampling)
+    '-af', 'loudnorm=I=-16:LRA=11:TP=-1.5', // Normalization at native sample rate
     '-ac', '2',             // Ensure stereo audio
     '-ice_name',            meta.title,
     '-ice_description',     meta.album,
