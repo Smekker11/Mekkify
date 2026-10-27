@@ -211,7 +211,11 @@ async function streamFlacFile(filePath, metadata, options = {}) {
     '-fflags', '+genpts',   // Fixes files with broken or jittery internal timestamps
     '-re',                // Read input at native frame rate
     '-i', filePath,       // Input FLAC file or stream
-    '-map', '0:a:0',      // Explicitly map only the primary audio stream (ignores embedded album art video streams that crash the muxer)
+    '-map', '0:a:0',      // Explicitly map only the primary audio stream (ignores embedded album art video streams)
+    '-map_metadata', '-1', // Wipe out bloated/problematic input tags (prevents Ogg header crashes)
+    '-metadata', `title=${meta.title}`,   // Safely inject clean title
+    '-metadata', `artist=${meta.artist}`, // Safely inject clean artist
+    '-metadata', `album=${meta.album}`,   // Safely inject clean album
     '-c:a', 'libvorbis',  // Use the Vorbis encoder
     '-b:a', '192k',       // Set audio bitrate to 192 kbps for good quality
     '-af', 'loudnorm=I=-16:LRA=11:TP=-1.5', // Normalize program loudness and limit peaks

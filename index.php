@@ -13,7 +13,7 @@
     <?php include 'frontend-methods.php'; ?>
     <div class="container">
         <header>
-            <h1>Mekkify Internet Radio 2.3.1 🍊</h1>
+            <h1>Mekkify Internet Radio 2.3.4 🍊</h1>
             <p>A fruit should never wear headphones!</p>
             <p>Flac quality mandarin music streaming service.</p>
         </header>
@@ -68,7 +68,7 @@
 
             <section class="news">
                 <h3>🍊📰 Mekkify News</h3>
-                <p>Version update Mekkify V2.3.1!</p>
+                <p>Version update Mekkify V2.3.4!</p>
                 <p>CONTAINERIZED!</p>
                 <p>.silence process error fixed</p>
             </section>
