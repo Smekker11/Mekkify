@@ -90,6 +90,11 @@ function getPrimaryArtist(metadata) {
     .trim() || 'Unknown Artist';
 }
 
+function sanitizeMeta(str) {
+  if (!str) return 'Unknown';
+  return str.toString().replace(/[\r\n]+/g, ' ').trim();
+}
+
 // Refresh DB function
 let repopulateDB = async () => {
   let flacArray = await listFilesRecursively(givenPath);
@@ -190,9 +195,9 @@ async function streamFlacFile(filePath, metadata, options = {}) {
   if (currentGen < streamGeneration) return;
 
   const meta = {
-    title:  metadata.title  || path.basename(filePath),
-    artist: metadata.artist || 'Unknown Artist',
-    album:  metadata.album  || 'Unknown Album',
+    title:  sanitizeMeta(metadata.title  || path.basename(filePath)),
+    artist: sanitizeMeta(metadata.artist || 'Unknown Artist'),
+    album:  sanitizeMeta(metadata.album  || 'Unknown Album'),
   };
 
   await extractCoverArt(filePath);
@@ -203,19 +208,21 @@ async function streamFlacFile(filePath, metadata, options = {}) {
   if (currentGen < streamGeneration) return;
    
   const ffmpegArgs = [
-    '-re',              // Read input at native frame rate
-    '-i', filePath,     // Input FLAC file or stream
-    '-c:a', 'libvorbis', // Use the Vorbis encoder
-    '-b:a', '192k',     // Set audio bitrate to 192 kbps for good quality
+    '-fflags', '+genpts',   // Fixes files with broken or jittery internal timestamps
+    '-re',                // Read input at native frame rate
+    '-i', filePath,       // Input FLAC file or stream
+    '-map', '0:a:0',      // Explicitly map only the primary audio stream (ignores embedded album art video streams that crash the muxer)
+    '-c:a', 'libvorbis',  // Use the Vorbis encoder
+    '-b:a', '192k',       // Set audio bitrate to 192 kbps for good quality
     '-af', 'loudnorm=I=-16:LRA=11:TP=-1.5', // Normalize program loudness and limit peaks
-    '-ar', '44100',     // Set audio sample rate to 44.1 kHz
-    '-ac', '2',         // Ensure stereo audio
-    '-ice_name',        meta.title,
-    '-ice_description', `${meta.album}`,
-    '-ice_url',         `https://${icecastserver.ICECAST_HOST}/Mekkify/cover.jpg`, 
+    '-ar', '44100',       // Set audio sample rate to 44.1 kHz
+    '-ac', '2',           // Ensure stereo audio
+    '-ice_name',          meta.title,
+    '-ice_description',   meta.album,
+    '-ice_url',           `https://${icecastserver.ICECAST_HOST}/Mekkify/cover.jpg`, 
     '-content_type', 'audio/ogg', 
-    '-vn',              // Disable video
-    '-f', 'ogg',        // Use OGG format
+    '-vn',                // Disable video entirely
+    '-f', 'ogg',          // Use OGG format
     `icecast://${encodeURIComponent(icecastserver.ICECAST_USER)}:${encodeURIComponent(icecastserver.ICECAST_PASSWORD)}@${icecastserver.ICECAST_HOST}:${icecastserver.ICECAST_PORT}${icecastserver.ICECAST_MOUNT}`
   ];
 
