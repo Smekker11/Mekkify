@@ -54,15 +54,25 @@ function stopProcess(process, label) {
 
 async function stopCurrentProcesses() {
   sourceTransition = sourceTransition.then(async () => {
+    let stoppedAny = false;
+
     if (silenceStreamProcess) {
       const processToStop = silenceStreamProcess;
       silenceStreamProcess = null;
       await stopProcess(processToStop, 'silence');
+      stoppedAny = true;
     }
     if (flacStreamProcess) {
       const processToStop = flacStreamProcess;
       flacStreamProcess = null;
       await stopProcess(processToStop, 'song');
+      stoppedAny = true;
+    }
+
+    // Give Icecast a brief moment (800ms) to free the mount point 
+    // before allowing a new FFmpeg process to connect.
+    if (stoppedAny) {
+      await new Promise((resolve) => setTimeout(resolve, 800));
     }
   });
 
@@ -261,9 +271,14 @@ async function startSilenceProcess() {
   await stopCurrentProcesses();
 
   const voidSoundEntity = spawn('ffmpeg', silenceArgsWithIce);
+  silenceStreamProcess = voidSoundEntity; // Assign early so checks know it's current
 
   voidSoundEntity.stderr.on('data', (data) => {
-    console.error(`FFmpeg stderr (silence): ${data}`);
+    // Optional: filter out expected broken pipe noise during intentional shutdowns
+    const msg = data.toString();
+    if (!msg.includes('Broken pipe')) {
+      console.error(`FFmpeg stderr (silence): ${msg}`);
+    }
   });
 
   let retries = 0;
@@ -271,10 +286,17 @@ async function startSilenceProcess() {
 
   voidSoundEntity.on('close', (code) => {
     console.log(`FFmpeg process (silence) exited with code ${code}`);
-     if (code === 224 && retries < maxRetries) { // FFmpeg exit code for "Broken pipe" is typically 255, but in this case, it's 224
+
+    // Only retry if this exact process instance was still meant to be running 
+    // and exited with a broken pipe unexpectedly (code 224)
+    if (code === 224 && retries < maxRetries && silenceStreamProcess === voidSoundEntity) {
       console.log(`Silence process failed with broken pipe. Retrying... (Attempt ${retries + 1}/${maxRetries})`);
       retries++;
-      startSilenceProcess(); // Retry the silence process
+      setTimeout(() => {
+        if (silenceStreamProcess === voidSoundEntity) {
+          startSilenceProcess();
+        }
+      }, 1000);
     } else {
       if (code !== 0 && code !== 224) {
         console.log(`FFmpeg process (silence) exited with unexpected code ${code}`);
@@ -285,14 +307,16 @@ async function startSilenceProcess() {
   voidSoundEntity.on('error', (err) => {
     console.error(`FFmpeg process (silence) error: ${err}`);
 
-    if (retries < maxRetries) {
+    if (retries < maxRetries && silenceStreamProcess === voidSoundEntity) {
       console.log(`Silence process encountered an error. Retrying... (Attempt ${retries + 1}/${maxRetries})`);
       retries++;
-      startSilenceProcess(); // Retry the silence process
+      setTimeout(() => {
+        if (silenceStreamProcess === voidSoundEntity) {
+          startSilenceProcess();
+        }
+      }, 1000);
     }
   });
-
-  silenceStreamProcess = voidSoundEntity; 
 }
 
 async function getAlbumJpg(albumName, artistsName) {
