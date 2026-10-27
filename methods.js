@@ -185,7 +185,7 @@ let listDB = async () => {
   return songs;
 }
 
-// Stream FLAC file via FFmpeg
+// Stream FLAC file via FFmpeg (Native sample rates preserved)
 async function streamFlacFile(filePath, metadata, options = {}) {
   const { startSilenceOnClose = true } = options;
   const currentGen = ++streamGeneration;
@@ -208,25 +208,25 @@ async function streamFlacFile(filePath, metadata, options = {}) {
   if (currentGen < streamGeneration) return;
    
   const ffmpegArgs = [
-    '-fflags', '+genpts',   // Fixes files with broken or jittery internal timestamps
-    '-re',                // Read input at native frame rate
-    '-i', filePath,       // Input FLAC file or stream
-    '-map', '0:a:0',      // Explicitly map only the primary audio stream (ignores embedded album art video streams)
-    '-map_metadata', '-1', // Wipe out bloated/problematic input tags (prevents Ogg header crashes)
-    '-metadata', `title=${meta.title}`,   // Safely inject clean title
-    '-metadata', `artist=${meta.artist}`, // Safely inject clean artist
-    '-metadata', `album=${meta.album}`,   // Safely inject clean album
-    '-c:a', 'libvorbis',  // Use the Vorbis encoder
-    '-b:a', '192k',       // Set audio bitrate to 192 kbps for good quality
-    '-af', 'loudnorm=I=-16:LRA=11:TP=-1.5', // Normalize program loudness and limit peaks
-    '-ar', '44100',       // Set audio sample rate to 44.1 kHz
-    '-ac', '2',           // Ensure stereo audio
-    '-ice_name',          meta.title,
-    '-ice_description',   meta.album,
-    '-ice_url',           `https://${icecastserver.ICECAST_HOST}/Mekkify/cover.jpg`, 
+    '-threads', '0',          // Allow FFmpeg to use all available container cores for decoding
+    '-max_muxing_queue_size', '4096', // Prevents buffer overflow and broken pipes on high-bitrate files
+    '-fflags', '+genpts',     // Fixes timestamps
+    '-i', filePath,         // Input FLAC file or stream
+    '-map', '0:a:0',        // Explicitly map only the primary audio stream (ignores embedded art)
+    '-map_metadata', '-1',  // Wipe out bloated input tags (prevents Ogg header crashes)
+    '-metadata', `title=${meta.title}`,   
+    '-metadata', `artist=${meta.artist}`, 
+    '-metadata', `album=${meta.album}`,   
+    '-c:a', 'libvorbis',    // Use the Vorbis encoder
+    '-b:a', '192k',         // Set audio bitrate to 192 kbps
+    '-af', 'loudnorm=I=-16:LRA=11:TP=-1.5', // Normalization at native sample rate (no resampling)
+    '-ac', '2',             // Ensure stereo audio
+    '-ice_name',            meta.title,
+    '-ice_description',     meta.album,
+    '-ice_url',             `https://${icecastserver.ICECAST_HOST}/Mekkify/cover.jpg`, 
     '-content_type', 'audio/ogg', 
-    '-vn',                // Disable video entirely
-    '-f', 'ogg',          // Use OGG format
+    '-vn',                  // Disable video entirely
+    '-f', 'ogg',            // Use OGG format
     `icecast://${encodeURIComponent(icecastserver.ICECAST_USER)}:${encodeURIComponent(icecastserver.ICECAST_PASSWORD)}@${icecastserver.ICECAST_HOST}:${icecastserver.ICECAST_PORT}${icecastserver.ICECAST_MOUNT}`
   ];
 
@@ -250,7 +250,6 @@ async function streamFlacFile(filePath, metadata, options = {}) {
         flacStreamProcess = null;
       }
 
-      // Fallback or restart silence safely if process finished naturally and wasn't superseded
       if (currentGen === streamGeneration && startSilenceOnClose) {
         setTimeout(() => {
           if (streamGeneration === currentGen && !flacStreamProcess && !silenceStreamProcess) {

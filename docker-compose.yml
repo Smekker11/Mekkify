@@ -5,6 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: mekkify
     network_mode: host
+    init: true
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
