@@ -210,22 +210,22 @@ async function streamFlacFile(filePath, metadata, options = {}) {
  const ffmpegArgs = [
     '-fflags', '+genpts',     // Fixes timestamps
     '-i', filePath,         // Input file
-    '-threads', '0',          // Allow FFmpeg to use all available container cores for decoding
+    '-threads', '0',          // Allow FFmpeg to use all available container cores
     '-map', '0:a:0',        // Explicitly map only the primary audio stream (ignores embedded art)
     '-map_metadata', '-1',  // Wipe out bloated input tags (prevents Ogg header crashes)
     '-metadata', `title=${meta.title}`,   
     '-metadata', `artist=${meta.artist}`, 
     '-metadata', `album=${meta.album}`,   
     '-c:a', 'libvorbis',    // Use the Vorbis encoder
-    '-b:a', '192k',         // Set audio bitrate to 192 kbps
-    '-af', 'loudnorm=I=-16:LRA=11:TP=-1.5', // Normalization at native sample rate (no resampling)
+    '-q:a', '4',            // Vorbis VBR quality scale (~160-192 kbps, avoids libvorbis bitrate crashes)
+    '-af', 'loudnorm=I=-16:LRA=11:TP=-1.5', // Normalization at native sample rate
     '-ac', '2',             // Ensure stereo audio
     '-ice_name',            meta.title,
     '-ice_description',     meta.album,
     '-ice_url',             `https://${icecastserver.ICECAST_HOST}/Mekkify/cover.jpg`, 
     '-content_type', 'audio/ogg', 
     '-vn',                  // Disable video entirely
-    '-f', 'ogg',            // Use OGG format
+    '-f', 'ogg',            // Use Ogg format
     `icecast://${encodeURIComponent(icecastserver.ICECAST_USER)}:${encodeURIComponent(icecastserver.ICECAST_PASSWORD)}@${icecastserver.ICECAST_HOST}:${icecastserver.ICECAST_PORT}${icecastserver.ICECAST_MOUNT}`
   ];
 
