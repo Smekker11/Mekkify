@@ -207,11 +207,9 @@ async function streamFlacFile(filePath, metadata, options = {}) {
   await stopCurrentProcesses();
   if (currentGen < streamGeneration) return;
    
-  const ffmpegArgs = [
-    '-fflags', '+genpts',     // Input option (must stay before -i)
+ const ffmpegArgs = [
+    '-fflags', '+genpts',     // Input option
     '-i', filePath,         // Input file
-    '-threads', '0',          // Output option (must be after -i)
-    '-max_muxing_queue_size', '4096', // Output option (must be after -i)
     '-map', '0:a:0',        // Explicitly map only the primary audio stream
     '-map_metadata', '-1',  // Wipe out bloated input tags
     '-metadata', `title=${meta.title}`,   
@@ -227,6 +225,8 @@ async function streamFlacFile(filePath, metadata, options = {}) {
     '-content_type', 'audio/ogg', 
     '-vn',                  // Disable video entirely
     '-f', 'ogg',            // Use OGG format
+    '-threads', '0',          // Output option: placed correctly before output URL
+    '-max_muxing_queue_size', '4096', // Output option: placed correctly before output URL
     `icecast://${encodeURIComponent(icecastserver.ICECAST_USER)}:${encodeURIComponent(icecastserver.ICECAST_PASSWORD)}@${icecastserver.ICECAST_HOST}:${icecastserver.ICECAST_PORT}${icecastserver.ICECAST_MOUNT}`
   ];
 
