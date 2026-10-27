@@ -207,17 +207,40 @@ async function streamFlacFile(filePath, metadata, options = {}) {
   await stopCurrentProcesses();
   if (currentGen < streamGeneration) return;
    
- const ffmpegArgs = [
+ // Stream FLAC file via FFmpeg (Forced real-time 1.0x speed)
+async function streamFlacFile(filePath, metadata, options = {}) {
+  const { startSilenceOnClose = true } = options;
+  const currentGen = ++streamGeneration;
+
+  // Immediately stop any running streams before art extraction
+  await stopCurrentProcesses();
+  if (currentGen < streamGeneration) return;
+
+  const meta = {
+    title:  sanitizeMeta(metadata.title  || path.basename(filePath)),
+    artist: sanitizeMeta(metadata.artist || 'Unknown Artist'),
+    album:  sanitizeMeta(metadata.album  || 'Unknown Album'),
+  };
+
+  await extractCoverArt(filePath);
+  if (currentGen < streamGeneration) return;
+
+  // Re-verify processes are stopped right before spawning
+  await stopCurrentProcesses();
+  if (currentGen < streamGeneration) return;
+   
+  const ffmpegArgs = [
     '-fflags', '+genpts',     // Fixes timestamps
+    '-re',                  // <-- Forces FFmpeg to read input at native real-time speed (~1.0x)
     '-i', filePath,         // Input file
     '-threads', '0',          // Allow FFmpeg to use all available container cores
-    '-map', '0:a:0',        // Explicitly map only the primary audio stream (ignores embedded art)
-    '-map_metadata', '-1',  // Wipe out bloated input tags (prevents Ogg header crashes)
+    '-map', '0:a:0',        // Explicitly map only the primary audio stream
+    '-map_metadata', '-1',  // Wipe out bloated input tags
     '-metadata', `title=${meta.title}`,   
     '-metadata', `artist=${meta.artist}`, 
     '-metadata', `album=${meta.album}`,   
     '-c:a', 'libvorbis',    // Use the Vorbis encoder
-    '-q:a', '4',            // Vorbis VBR quality scale (~160-192 kbps, avoids libvorbis bitrate crashes)
+    '-q:a', '4',            // Vorbis VBR quality scale (~160-192 kbps)
     '-af', 'loudnorm=I=-16:LRA=11:TP=-1.5', // Normalization at native sample rate
     '-ac', '2',             // Ensure stereo audio
     '-ice_name',            meta.title,
@@ -228,6 +251,46 @@ async function streamFlacFile(filePath, metadata, options = {}) {
     '-f', 'ogg',            // Use Ogg format
     `icecast://${encodeURIComponent(icecastserver.ICECAST_USER)}:${encodeURIComponent(icecastserver.ICECAST_PASSWORD)}@${icecastserver.ICECAST_HOST}:${icecastserver.ICECAST_PORT}${icecastserver.ICECAST_MOUNT}`
   ];
+
+  console.log(`Streaming file: ${filePath}`);
+ 
+  return new Promise((resolve, reject) => {
+    flacStreamProcess = spawn('ffmpeg', ffmpegArgs);
+    const spawnedProcess = flacStreamProcess;
+
+    flacStreamProcess.stderr.on('data', (data) => {
+      const msg = data.toString();
+      if (!msg.includes('Broken pipe')) {
+        console.error(`FFmpeg stderr: ${msg}`);
+      }
+    });
+
+    flacStreamProcess.on('close', (code) => {
+      console.log(`FFmpeg process exited with code ${code}`);
+      
+      if (flacStreamProcess === spawnedProcess) {
+        flacStreamProcess = null;
+      }
+
+      if (currentGen === streamGeneration && startSilenceOnClose) {
+        setTimeout(() => {
+          if (streamGeneration === currentGen && !flacStreamProcess && !silenceStreamProcess) {
+            startSilenceProcess();
+          }
+        }, 500);
+      }
+      resolve(); 
+    });
+
+    flacStreamProcess.on('error', (err) => {
+      console.error(`FFmpeg process error: ${err}`);
+      if (flacStreamProcess === spawnedProcess) {
+        flacStreamProcess = null;
+      }
+      reject(err); 
+    });
+  });
+}
 
   console.log(`Streaming file: ${filePath}`);
  
