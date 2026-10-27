@@ -26,7 +26,7 @@ const silenceArgsWithIce = [...silenceArgsBase,
 // Set path of ffmpeg 
 ffmpeg.setFfmpegPath('/usr/bin/ffmpeg');
 
-//define global ffmpeg instances
+// Define global ffmpeg instances & tracking variables
 let flacStreamProcess = null;
 let silenceStreamProcess = null;  
 let streamGeneration = 0;
@@ -69,27 +69,18 @@ async function stopCurrentProcesses() {
       stoppedAny = true;
     }
 
-    // Give Icecast a brief moment (800ms) to free the mount point 
-    // before allowing a new FFmpeg process to connect.
+    // Give Icecast a solid 1200ms cooldown to completely free the mount point socket
     if (stoppedAny) {
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      await new Promise((resolve) => setTimeout(resolve, 1200));
     }
   });
 
-  await sourceTransition;
+  return sourceTransition;
 }
 
 async function stopCurrentSong() {
-  skipRequestGeneration = streamGeneration;
-  sourceTransition = sourceTransition.then(async () => {
-    if (flacStreamProcess) {
-      const processToStop = flacStreamProcess;
-      flacStreamProcess = null;
-      await stopProcess(processToStop, 'song');
-    }
-  });
-
-  await sourceTransition;
+  skipRequestGeneration = ++streamGeneration;
+  await stopCurrentProcesses();
 }
 
 function getPrimaryArtist(metadata) {
@@ -99,7 +90,7 @@ function getPrimaryArtist(metadata) {
     .trim() || 'Unknown Artist';
 }
 
-//refreshdb function
+// Refresh DB function
 let repopulateDB = async () => {
   let flacArray = await listFilesRecursively(givenPath);
   for (let flacfile of flacArray) {
@@ -173,7 +164,6 @@ async function extractCoverArt(filePath) {
     const albumArtUrl = await getAlbumJpg(album, artist);
 
     if (!albumArtUrl) {
-      console.warn(`No album art URL available for ${artist} - ${album}`);
       return false;
     }
 
@@ -184,72 +174,95 @@ async function extractCoverArt(filePath) {
   }
 }
 
-//listDB function
+// List DB function
 let listDB = async () => {
   let songs = await Songs.findAll();
   return songs;
 }
 
-//grotesque function to stream with ffmpeg
+// Stream FLAC file via FFmpeg
 async function streamFlacFile(filePath, metadata, options = {}) {
   const { startSilenceOnClose = true } = options;
-  const generation = ++streamGeneration;
+  const currentGen = ++streamGeneration;
+
+  // Immediately stop any running streams before art extraction
+  await stopCurrentProcesses();
+  if (currentGen < streamGeneration) return;
+
   const meta = {
     title:  metadata.title  || path.basename(filePath),
     artist: metadata.artist || 'Unknown Artist',
     album:  metadata.album  || 'Unknown Album',
   };
+
   await extractCoverArt(filePath);
-  if (generation <= skipRequestGeneration) return;
+  if (currentGen < streamGeneration) return;
+
+  // Re-verify processes are stopped right before spawning
   await stopCurrentProcesses();
+  if (currentGen < streamGeneration) return;
    
-//FFMPEG ARGS
-const ffmpegArgs = [
-  '-re',              // Read input at native frame rate
-  '-i', filePath,     // Input FLAC file or stream
-  '-c:a', 'libvorbis', // Use the Vorbis encoder
-  '-b:a', '192k',     // Set audio bitrate to 192 kbps for good quality
+  const ffmpegArgs = [
+    '-re',              // Read input at native frame rate
+    '-i', filePath,     // Input FLAC file or stream
+    '-c:a', 'libvorbis', // Use the Vorbis encoder
+    '-b:a', '192k',     // Set audio bitrate to 192 kbps for good quality
     '-af', 'loudnorm=I=-16:LRA=11:TP=-1.5', // Normalize program loudness and limit peaks
-  '-ar', '44100',     // Set audio sample rate to 44.1 kHz
-  '-ac', '2',         // Ensure stereo audio
-  // Pass text metadata to Icecast
+    '-ar', '44100',     // Set audio sample rate to 44.1 kHz
+    '-ac', '2',         // Ensure stereo audio
     '-ice_name',        meta.title,
     '-ice_description', `${meta.album}`,
-    '-ice_url',         `https://${icecastserver.ICECAST_HOST}/Mekkify/cover.jpg`, // art URL for players
-  '-content_type', 'audio/ogg', // Set content type to OGG
-  '-vn',              // Disable video
-  '-f', 'ogg',        // Use OGG format
-  `icecast://${encodeURIComponent(icecastserver.ICECAST_USER)}:${encodeURIComponent(icecastserver.ICECAST_PASSWORD)}@${icecastserver.ICECAST_HOST}:${icecastserver.ICECAST_PORT}${icecastserver.ICECAST_MOUNT}`
-];
+    '-ice_url',         `https://${icecastserver.ICECAST_HOST}/Mekkify/cover.jpg`, 
+    '-content_type', 'audio/ogg', 
+    '-vn',              // Disable video
+    '-f', 'ogg',        // Use OGG format
+    `icecast://${encodeURIComponent(icecastserver.ICECAST_USER)}:${encodeURIComponent(icecastserver.ICECAST_PASSWORD)}@${icecastserver.ICECAST_HOST}:${icecastserver.ICECAST_PORT}${icecastserver.ICECAST_MOUNT}`
+  ];
 
   console.log(`Streaming file: ${filePath}`);
  
   return new Promise((resolve, reject) => {
     flacStreamProcess = spawn('ffmpeg', ffmpegArgs);
-    const currentProcess = flacStreamProcess;
+    const spawnedProcess = flacStreamProcess;
 
     flacStreamProcess.stderr.on('data', (data) => {
-      console.error(`FFmpeg stderr: ${data}`);
+      const msg = data.toString();
+      if (!msg.includes('Broken pipe')) {
+        console.error(`FFmpeg stderr: ${msg}`);
+      }
     });
 
     flacStreamProcess.on('close', (code) => {
       console.log(`FFmpeg process exited with code ${code}`);
-      if (code === 0 && startSilenceOnClose && generation === streamGeneration && flacStreamProcess === currentProcess) {
-        startSilenceProcess();
+      
+      if (flacStreamProcess === spawnedProcess) {
+        flacStreamProcess = null;
+      }
+
+      // Fallback or restart silence safely if process finished naturally and wasn't superseded
+      if (currentGen === streamGeneration && startSilenceOnClose) {
+        setTimeout(() => {
+          if (streamGeneration === currentGen && !flacStreamProcess && !silenceStreamProcess) {
+            startSilenceProcess();
+          }
+        }, 500);
       }
       resolve(); 
     });
 
     flacStreamProcess.on('error', (err) => {
       console.error(`FFmpeg process error: ${err}`);
+      if (flacStreamProcess === spawnedProcess) {
+        flacStreamProcess = null;
+      }
       reject(err); 
     });
   });
 }
-//recursive file read
+
+// Recursive file read
 function listFilesRecursively(dirPath) {
   let fileList = [];
-
   const items = fs.readdirSync(dirPath);
 
   for (const item of items) {
@@ -266,15 +279,16 @@ function listFilesRecursively(dirPath) {
   return fileList;
 }
 
-//grotesque function to silence with ffmpeg
+// Start silence stream process
 async function startSilenceProcess() {
+  const currentGen = streamGeneration;
   await stopCurrentProcesses();
+  if (streamGeneration !== currentGen) return;
 
   const voidSoundEntity = spawn('ffmpeg', silenceArgsWithIce);
-  silenceStreamProcess = voidSoundEntity; // Assign early so checks know it's current
+  silenceStreamProcess = voidSoundEntity; 
 
   voidSoundEntity.stderr.on('data', (data) => {
-    // Optional: filter out expected broken pipe noise during intentional shutdowns
     const msg = data.toString();
     if (!msg.includes('Broken pipe')) {
       console.error(`FFmpeg stderr (silence): ${msg}`);
@@ -286,32 +300,33 @@ async function startSilenceProcess() {
 
   voidSoundEntity.on('close', (code) => {
     console.log(`FFmpeg process (silence) exited with code ${code}`);
+    
+    if (silenceStreamProcess === voidSoundEntity) {
+      silenceStreamProcess = null;
+    }
 
-    // Only retry if this exact process instance was still meant to be running 
-    // and exited with a broken pipe unexpectedly (code 224)
-    if (code === 224 && retries < maxRetries && silenceStreamProcess === voidSoundEntity) {
-      console.log(`Silence process failed with broken pipe. Retrying... (Attempt ${retries + 1}/${maxRetries})`);
+    // Handle unexpected drops (like broken pipe code 224)
+    if (code === 224 && retries < maxRetries && streamGeneration === currentGen) {
+      console.log(`Silence process failed with broken pipe. Retrying... (${retries + 1}/${maxRetries})`);
       retries++;
       setTimeout(() => {
-        if (silenceStreamProcess === voidSoundEntity) {
+        if (!flacStreamProcess && !silenceStreamProcess && streamGeneration === currentGen) {
           startSilenceProcess();
         }
       }, 1000);
-    } else {
-      if (code !== 0 && code !== 224) {
-        console.log(`FFmpeg process (silence) exited with unexpected code ${code}`);
-      }
     }
   });
 
   voidSoundEntity.on('error', (err) => {
     console.error(`FFmpeg process (silence) error: ${err}`);
+    if (silenceStreamProcess === voidSoundEntity) {
+      silenceStreamProcess = null;
+    }
 
-    if (retries < maxRetries && silenceStreamProcess === voidSoundEntity) {
-      console.log(`Silence process encountered an error. Retrying... (Attempt ${retries + 1}/${maxRetries})`);
+    if (retries < maxRetries && streamGeneration === currentGen) {
       retries++;
       setTimeout(() => {
-        if (silenceStreamProcess === voidSoundEntity) {
+        if (!flacStreamProcess && !silenceStreamProcess && streamGeneration === currentGen) {
           startSilenceProcess();
         }
       }, 1000);
@@ -411,4 +426,14 @@ async function getAlbumCover(albumName, artistsName, songPath) {
   return artworkUrl;
 }
 
-export { repopulateDB, listDB, streamFlacFile, startSilenceProcess, stopCurrentSong, getAlbumJpg, getAlbumCover, getLocalAlbumCoverPath, getOptimizedAlbumCoverPath };
+export { 
+  repopulateDB, 
+  listDB, 
+  streamFlacFile, 
+  startSilenceProcess, 
+  stopCurrentSong, 
+  getAlbumJpg, 
+  getAlbumCover, 
+  getLocalAlbumCoverPath, 
+  getOptimizedAlbumCoverPath 
+};
