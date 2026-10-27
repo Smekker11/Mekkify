@@ -208,16 +208,17 @@ async function streamFlacFile(filePath, metadata, options = {}) {
   if (currentGen < streamGeneration) return;
    
  const ffmpegArgs = [
-    '-fflags', '+genpts',     // Input option
+    '-fflags', '+genpts',     // Fixes timestamps
     '-i', filePath,         // Input file
-    '-map', '0:a:0',        // Explicitly map only the primary audio stream
-    '-map_metadata', '-1',  // Wipe out bloated input tags
+    '-threads', '0',          // Allow FFmpeg to use all available container cores for decoding
+    '-map', '0:a:0',        // Explicitly map only the primary audio stream (ignores embedded art)
+    '-map_metadata', '-1',  // Wipe out bloated input tags (prevents Ogg header crashes)
     '-metadata', `title=${meta.title}`,   
     '-metadata', `artist=${meta.artist}`, 
     '-metadata', `album=${meta.album}`,   
     '-c:a', 'libvorbis',    // Use the Vorbis encoder
     '-b:a', '192k',         // Set audio bitrate to 192 kbps
-    '-af', 'loudnorm=I=-16:LRA=11:TP=-1.5', // Normalization at native sample rate
+    '-af', 'loudnorm=I=-16:LRA=11:TP=-1.5', // Normalization at native sample rate (no resampling)
     '-ac', '2',             // Ensure stereo audio
     '-ice_name',            meta.title,
     '-ice_description',     meta.album,
@@ -225,8 +226,6 @@ async function streamFlacFile(filePath, metadata, options = {}) {
     '-content_type', 'audio/ogg', 
     '-vn',                  // Disable video entirely
     '-f', 'ogg',            // Use OGG format
-    '-threads', '0',          // Output option: placed correctly before output URL
-    '-max_muxing_queue_size', '4096', // Output option: placed correctly before output URL
     `icecast://${encodeURIComponent(icecastserver.ICECAST_USER)}:${encodeURIComponent(icecastserver.ICECAST_PASSWORD)}@${icecastserver.ICECAST_HOST}:${icecastserver.ICECAST_PORT}${icecastserver.ICECAST_MOUNT}`
   ];
 
